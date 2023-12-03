@@ -1,4 +1,4 @@
-module pkgx
+module github.com/gutilx/pkgx
 
 go 1.19
 
