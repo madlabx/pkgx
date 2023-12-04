@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"risk_manager/pkg/log"
+	"github.com/madlabx/pkgx/log"
 )
 
 func ValidateSign(url string, format []string, enc, secret string) error {

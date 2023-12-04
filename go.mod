@@ -3,6 +3,7 @@ module github.com/madlabx/pkgx
 go 1.19
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fogleman/gg v1.3.0
 	github.com/go-echarts/go-echarts/v2 v2.3.2
 	github.com/go-resty/resty/v2 v2.10.0

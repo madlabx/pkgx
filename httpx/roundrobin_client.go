@@ -2,16 +2,14 @@ package httpx
 
 import (
 	"errors"
+	resty "github.com/go-resty/resty/v2"
+	"github.com/madlabx/pkgx/auth"
+	"github.com/madlabx/pkgx/log"
+	"github.com/madlabx/pkgx/typex"
 	"math/rand"
 	"net"
 	"sync"
 	"time"
-
-	resty "github.com/go-resty/resty/v2"
-
-	"risk_manager/pkg/auth"
-	"risk_manager/pkg/log"
-	"risk_manager/pkg/typex"
 )
 
 type RrServer struct {

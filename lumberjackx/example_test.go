@@ -1,8 +1,8 @@
 package lumberjackx_test
 
 import (
+	"github.com/madlabx/pkgx/lumberjackx"
 	"log"
-	"risk_manager/pkg/lumberjackx"
 )
 
 // To use xlumberjack with the standard library's log package, just pass it into

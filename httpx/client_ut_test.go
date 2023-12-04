@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"risk_manager/pkg/log"
+	"github.com/madlabx/pkgx/log"
 )
 
 type ClientTestSuite struct {

@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jordan-wright/email"
+	"github.com/madlabx/pkgx/viperx"
 	"net/smtp"
-	"risk_manager/module/config"
-	"risk_manager/pkg/viperx"
 	"strings"
 )
 
@@ -36,8 +35,8 @@ const (
 )
 
 var (
-	SendToPublish = []string{"chukaiyan@foxmail.com", "jonathanwang.wzz@qq.com"}
-	SendToDev     = []string{"jonathanwang.wzz@qq.com"}
+	SendToPublish = []string{"chukaiyan@foxmail.com", "jonathanwang.wzz@hotmail.com"}
+	SendToDev     = []string{"zhongzi253@hotmail.com"}
 )
 
 func getSendTo(c MailClass, n string) []string {
@@ -94,9 +93,6 @@ func NewMail() *MailType {
 		nodeName = "[" + nodeName + "]"
 	}
 
-	if config.DebugMode == "yes" {
-		SendToPublish = []string{"jonathanwang.wzz@qq.com"}
-	}
 	mailTo := strings.Join(SendToPublish, `;`)
 	return &MailType{
 		addr:      "smtp.qq.com:587",

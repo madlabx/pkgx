@@ -3,21 +3,20 @@ package chartx
 import (
 	"errors"
 	"fmt"
+	"github.com/fogleman/gg"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
-	"github.com/wcharczuk/go-chart/v2/drawing"
-	"math"
-	"math/rand"
-	"os"
-	"risk_manager/pkg/log"
-	"time"
-
-	"github.com/fogleman/gg"
+	"github.com/madlabx/pkgx/log"
 	"github.com/wcharczuk/go-chart/v2"
+	"github.com/wcharczuk/go-chart/v2/drawing"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
+	"math"
+	"math/rand"
+	"os"
+	"time"
 )
 
 type ChartLine struct {
