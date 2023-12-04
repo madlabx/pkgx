@@ -40,6 +40,7 @@ func FormatToxx123456(tsCode string) string {
 	//格式为 123456.sz
 	return tsCode[len(tsCode)-2:] + tsCode[:6]
 }
+
 func FormatTo123456(tsCode string) string {
 	return tsCode[:6]
 }
