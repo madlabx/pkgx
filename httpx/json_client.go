@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/madlabx/pkgx/log"
+	"github.com/madlabx/pkgx/typex"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,9 +16,6 @@ import (
 	"time"
 
 	resty "github.com/go-resty/resty/v2"
-
-	"risk_manager/pkg/log"
-	"risk_manager/pkg/typex"
 )
 
 var ErrBadParams error = errors.New("Bad input params")

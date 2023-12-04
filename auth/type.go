@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"risk_manager/pkg/viperx"
+	"github.com/madlabx/pkgx/viperx"
 )
 
 type SignCfg struct {

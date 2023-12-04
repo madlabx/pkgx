@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"risk_manager/pkg/log"
-	"risk_manager/pkg/typex"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/madlabx/pkgx/log"
+	"github.com/madlabx/pkgx/typex"
 )
 
 type JwtConf struct {
