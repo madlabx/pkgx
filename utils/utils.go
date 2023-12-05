@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode"
@@ -124,12 +125,16 @@ var defaultLetters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 	}
 */
 
-func init() {
-	rand.Seed(time.Now().Unix())
-}
+var once sync.Once
+
 func RandomString(size int) string {
 	var container string
 	var str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+	once.Do(func() {
+		rand.Seed(time.Now().Unix())
+	})
+
 	length := len(str)
 	//	bigInt := big.NewInt(int64(length))
 	for i := 0; i < size; i++ {
