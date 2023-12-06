@@ -312,7 +312,11 @@ func getStructFieldsValues(structValue reflect.Value) []string {
 	for j := 0; j < structType.NumField(); j++ {
 		field := structValue.Field(j)
 		fieldType := structType.Field(j).Type
-		if fieldType == reflect.TypeOf(time.Time{}) {
+		name := structType.Field(j).Name
+		if name == "Date" {
+			timeValue := field.Interface().(time.Time)
+			values = append(values, timeValue.Format("2006-01-02"))
+		} else if fieldType == reflect.TypeOf(time.Time{}) {
 			timeValue := field.Interface().(time.Time)
 			values = append(values, timeValue.Format("2006-01-02 15:04:05"))
 		} else if field.Kind() == reflect.Struct {
