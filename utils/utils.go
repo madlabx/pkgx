@@ -313,12 +313,13 @@ func getStructFieldsValues(structValue reflect.Value) []string {
 		field := structValue.Field(j)
 		fieldType := structType.Field(j).Type
 		name := structType.Field(j).Name
-		if name == "Date" {
+		if fieldType == reflect.TypeOf(time.Time{}) {
 			timeValue := field.Interface().(time.Time)
-			values = append(values, timeValue.Format("2006-01-02"))
-		} else if fieldType == reflect.TypeOf(time.Time{}) {
-			timeValue := field.Interface().(time.Time)
-			values = append(values, timeValue.Format("2006-01-02 15:04:05"))
+			if name == "Date" {
+				values = append(values, timeValue.Format("2006-01-02"))
+			} else {
+				values = append(values, timeValue.Format("2006-01-02 15:04:05"))
+			}
 		} else if field.Kind() == reflect.Struct {
 			values = append(values, getStructFieldsValues(field)...)
 		} else {
