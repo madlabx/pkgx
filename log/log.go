@@ -120,7 +120,7 @@ func Errorf(format string, args ...interface{}) {
 }
 
 func StdoutPrintf(format string, args ...interface{}) {
-	fmt.Printf(format, args...)
+	fmt.Printf(format+"\n", args...)
 }
 
 func Panicf(format string, args ...interface{}) {

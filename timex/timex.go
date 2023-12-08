@@ -30,3 +30,18 @@ func GbTimeToUnixTime2(timeStr string) int64 {
 	p, _ := time.ParseInLocation(gbFormat, timeStr, time.Local)
 	return p.Unix()
 }
+
+// 时间格式变化 20060102 -> 2006-01-02
+func FormatDate(dateStr string) (time.Time, error) {
+
+	// 定义日期格式
+	dateFormat := "20060102" // Go语言中的日期格式化字符串，对应 "YYYYMMDD"
+
+	// 解析日期字符串为时间格式
+	t, err := time.Parse(dateFormat, dateStr)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return t, nil
+}
