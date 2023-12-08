@@ -289,52 +289,63 @@ func Round(num float64, digits int) float64 {
 	return math.Round(num*shift) / shift
 }
 
-func getStructFieldsNames(structType reflect.Type) []string {
+func getStructFieldsNames(t reflect.Type) []string {
 	var fieldNames []string
 
-	// 遍历结构体字段
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		if field.Anonymous {
-			// 如果是匿名字段（嵌套结构体），则递归调用获取嵌套结构体的字段名
-			fieldNames = append(fieldNames, getStructFieldsNames(field.Type)...)
-		} else {
-			fieldNames = append(fieldNames, field.Name)
+	switch t.Kind() {
+	case reflect.Ptr:
+		fieldNames = append(fieldNames, getStructFieldsNames(t.Elem())...)
+	case reflect.Struct:
+		// 遍历结构体字段
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			if field.Anonymous {
+				// 如果是匿名字段（嵌套结构体），则递归调用获取嵌套结构体的字段名
+				fieldNames = append(fieldNames, getStructFieldsNames(field.Type)...)
+			} else if field.Type.Kind() == reflect.Ptr {
+				fieldNames = append(fieldNames, getStructFieldsNames(field.Type.Elem())...)
+			} else if field.Type.Kind() == reflect.Struct {
+				fieldNames = append(fieldNames, getStructFieldsNames(field.Type)...)
+			} else {
+				fieldNames = append(fieldNames, field.Name)
+			}
 		}
+	default:
+		fieldNames = append(fieldNames, t.Name())
 	}
 
 	return fieldNames
 }
 
-func getStructFieldsValues(structValue reflect.Value) []string {
-	var values []string
-	structType := structValue.Type()
-	for j := 0; j < structType.NumField(); j++ {
-		field := structValue.Field(j)
-		fieldType := structType.Field(j).Type
-		name := structType.Field(j).Name
-		if fieldType == reflect.TypeOf(time.Time{}) {
-			timeValue := field.Interface().(time.Time)
-			if name == "Date" {
-				values = append(values, timeValue.Format("2006-01-02"))
-			} else {
-				values = append(values, timeValue.Format("2006-01-02 15:04:05"))
-			}
-		} else if field.Kind() == reflect.Struct {
-			values = append(values, getStructFieldsValues(field)...)
-		} else {
-			if field.Kind() == reflect.Ptr {
-				//TODO 这里有可能还是struct
-				field = field.Elem()
-			}
-			if field.IsValid() && field.CanInterface() {
-				values = append(values, fmt.Sprintf("%v", field.Interface()))
-			} else {
-				log.Errorf("Get invalid field, field=%#v", field)
-				values = append(values, "")
-			}
+func getStructFieldsValues(v reflect.Value) []string {
 
-			// 将成员的值放入二维数据切片中
+	var values []string
+	switch v.Kind() {
+	case reflect.Ptr:
+		values = append(values, getStructFieldsValues(v.Elem())...)
+	case reflect.Struct:
+		structType := v.Type()
+		for j := 0; j < structType.NumField(); j++ {
+			field := v.Field(j)
+			fieldType := structType.Field(j).Type
+			name := structType.Field(j).Name
+			if fieldType == reflect.TypeOf(time.Time{}) {
+				timeValue := field.Interface().(time.Time)
+				if name == "Date" {
+					values = append(values, timeValue.Format("2006-01-02"))
+				} else {
+					values = append(values, timeValue.Format("2006-01-02 15:04:05"))
+				}
+			} else {
+				values = append(values, getStructFieldsValues(field)...)
+			}
+		}
+	default:
+		if v.IsValid() && v.CanInterface() {
+			values = append(values, fmt.Sprintf("%v", v.Interface()))
+		} else {
+			log.Errorf("Get invalid field, field=%#v", v)
+			values = append(values, "")
 		}
 	}
 	return values
