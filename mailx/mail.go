@@ -38,7 +38,7 @@ type MailContext struct {
 	SmtpHost       string
 }
 
-var mc *MailContext
+var mc *MailContext = nil
 
 func (mc *MailContext) GetSendTo(c MailType, n string) []string {
 	r := strings.Index(n, string(NodeNamePrefixPub))
