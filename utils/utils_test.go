@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -60,6 +61,23 @@ func TestFormat(t *testing.T) {
 	data2.BB = &a
 	data2.CA = &b
 	data2.CB = 16.0
+	//data2.E = &now
 
-	fmt.Printf("%v\n", FormatToHtml([]string{"a1"}, []AaaT{data, data2}))
+	d := []AaaT{data, data2}
+	// 获取结构体类型
+	fieldNames := getStructFieldsNames(reflect.TypeOf(d))
+
+	// 构建表格数据
+	tableData := [][]string{fieldNames}
+	tableData = append(tableData, getArrayStructFieldsValues(d)...)
+
+	for i, td := range tableData {
+		fmt.Printf("%v", i)
+		for _, ts := range td {
+			fmt.Printf("[%v] ", ts)
+		}
+		fmt.Printf("\n")
+	}
+
+	//fmt.Printf("%v\n", FormatToHtml([]string{"a1"}, []AaaT{data, data2}))
 }

@@ -293,7 +293,7 @@ func getStructFieldsNames(t reflect.Type) []string {
 	var fieldNames []string
 
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Ptr, reflect.Slice:
 		fieldNames = append(fieldNames, getStructFieldsNames(t.Elem())...)
 	case reflect.Struct:
 		// 遍历结构体字段
@@ -302,11 +302,8 @@ func getStructFieldsNames(t reflect.Type) []string {
 			if field.Anonymous {
 				// 如果是匿名字段（嵌套结构体），则递归调用获取嵌套结构体的字段名
 				fieldNames = append(fieldNames, getStructFieldsNames(field.Type)...)
-			} else if field.Type.Kind() == reflect.Ptr {
-				fieldNames = append(fieldNames, getStructFieldsNames(field.Type.Elem())...)
-			} else if field.Type.Kind() == reflect.Struct {
-				fieldNames = append(fieldNames, getStructFieldsNames(field.Type)...)
 			} else {
+				//只接受一层
 				fieldNames = append(fieldNames, field.Name)
 			}
 		}
@@ -317,35 +314,49 @@ func getStructFieldsNames(t reflect.Type) []string {
 	return fieldNames
 }
 
-func getStructFieldsValues(v reflect.Value) []string {
+func getStructFieldsValues(structValue reflect.Value) []string {
 
 	var values []string
-	switch v.Kind() {
-	case reflect.Ptr:
-		values = append(values, getStructFieldsValues(v.Elem())...)
-	case reflect.Struct:
-		structType := v.Type()
-		for j := 0; j < structType.NumField(); j++ {
-			field := v.Field(j)
-			fieldType := structType.Field(j).Type
-			name := structType.Field(j).Name
-			if fieldType == reflect.TypeOf(time.Time{}) {
-				timeValue := field.Interface().(time.Time)
-				if name == "Date" {
-					values = append(values, timeValue.Format("2006-01-02"))
-				} else {
-					values = append(values, timeValue.Format("2006-01-02 15:04:05"))
-				}
-			} else {
-				values = append(values, getStructFieldsValues(field)...)
-			}
+
+	if structValue.Kind() == reflect.Ptr {
+		structValue = structValue.Elem()
+	}
+
+	if structValue.Kind() != reflect.Struct {
+		log.Errorf("Get invalid value: %#v", structValue)
+		return nil
+	}
+	structType := structValue.Type()
+	for j := 0; j < structType.NumField(); j++ {
+		field := structValue.Field(j)
+		fieldType := structType.Field(j).Type
+		if field.Kind() == reflect.Ptr {
+			field = field.Elem()
+			fieldType = fieldType.Elem()
 		}
-	default:
-		if v.IsValid() && v.CanInterface() {
-			values = append(values, fmt.Sprintf("%v", v.Interface()))
+		if !field.IsValid() {
+			values = append(values, "-")
+			continue
+		}
+
+		if fieldType == reflect.TypeOf(time.Time{}) {
+			name := structType.Field(j).Name
+			timeValue := field.Interface().(time.Time)
+			if name == "Date" {
+				values = append(values, timeValue.Format("2006-01-02"))
+			} else {
+				values = append(values, timeValue.Format("2006-01-02 15:04:05"))
+			}
+		} else if structType.Field(j).Anonymous {
+			log.Errorf("%v\n", fieldType)
+			values = append(values, getStructFieldsValues(field)...)
+		} else if field.Kind() == reflect.Struct {
+			values = append(values, "-")
+		} else if field.IsValid() && field.CanInterface() {
+			values = append(values, fmt.Sprintf("%v", field.Interface()))
 		} else {
-			log.Errorf("Get invalid field, field=%#v", v)
-			values = append(values, "")
+			log.Errorf("Get invalid field, j=%v, field=%#v", j, field)
+			values = append(values, "-")
 		}
 	}
 	return values
@@ -381,20 +392,7 @@ func FormatToHtml(titles []string, datas ...any) string {
 
 	for i, data := range datas {
 		// 获取结构体类型
-		valueOf := reflect.ValueOf(data)
-
-		// 处理指针类型
-		if valueOf.Kind() == reflect.Ptr {
-			valueOf = valueOf.Elem()
-		}
-
-		structType := valueOf.Type()
-		// 获取结构体类型
-		if valueOf.Kind() == reflect.Slice {
-			structType = valueOf.Type().Elem()
-		}
-
-		fieldNames := getStructFieldsNames(structType)
+		fieldNames := getStructFieldsNames(reflect.TypeOf(data))
 
 		// 构建表格数据
 		tableData := [][]string{fieldNames}
