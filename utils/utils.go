@@ -378,7 +378,7 @@ func getArrayStructFieldsValues(data interface{}) [][]string {
 	return values
 }
 
-func FormatToHtml(titles []string, datas ...any) string {
+func FormatToHtmlTable(titles []string, datas ...any) string {
 	if len(titles) != len(datas) {
 		log.Errorf("Unmatched number for titles and datas")
 		return ""

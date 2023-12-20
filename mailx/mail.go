@@ -1,7 +1,6 @@
 package mailx
 
 import (
-	"errors"
 	"github.com/jordan-wright/email"
 	"github.com/madlabx/pkgx/viperx"
 	"net/smtp"
@@ -88,22 +87,7 @@ func newEmail() *email.Email {
 }
 
 func SendMailHtml(t MailType, title, body string) error {
-	// 创建邮件内容
-	e := newEmail()
-	if e == nil {
-		return errors.New("meed call InitMailContext")
-	}
-
-	nodeName := viperx.GetString("tradeNodeName", "")
-	if len(nodeName) != 0 {
-		nodeName = "[" + nodeName + "]"
-	}
-
-	e.To = mc.GetSendTo(t, nodeName)
-	e.Subject = nodeName + title
-
-	e.HTML = []byte(body)
-	return e.Send(mc.SmtpHost+":"+mc.SmtpPort, smtp.PlainAuth(mc.Identify, mc.UserAuth, mc.Password, mc.SmtpHost))
+	return SendMailHtmlWithAttach(t, title, body, nil)
 }
 
 func SendMailHtmlWithAttach(nt MailType, title, body string, attachFiles []string) error {
@@ -122,5 +106,5 @@ func SendMailHtmlWithAttach(nt MailType, title, body string, attachFiles []strin
 		e.AttachFile(file)
 	}
 	e.HTML = []byte(body)
-	return e.Send(mc.SmtpHost+":"+mc.SmtpPort, smtp.PlainAuth("", mc.UserAuth, mc.Password, mc.SmtpHost))
+	return e.Send(mc.SmtpHost+":"+mc.SmtpPort, smtp.PlainAuth(mc.Identify, mc.UserAuth, mc.Password, mc.SmtpHost))
 }
