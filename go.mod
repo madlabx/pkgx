@@ -1,4 +1,4 @@
-module pkgx
+module github.com/madlabx/pkgx
 
 go 1.21
 
