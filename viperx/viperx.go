@@ -8,10 +8,14 @@ import (
 	"strings"
 )
 
+// Unmarshal decodes the configuration into a struct using viper.Unmarshal.
+// It accepts any type of rawVal where configuration data will be stored, and opts for decoder options.
 func Unmarshal(rawVal any, opts ...viper.DecoderConfigOption) error {
 	return viper.Unmarshal(rawVal, opts...)
 }
 
+// Init initializes the configuration by setting up flags, environment variables, and configuration files.
+// It takes a FlagSet for command-line arguments, a prefix for environment variables, and a path to the configuration file.
 func Init(cmdFlags *pflag.FlagSet, envPrefix string, cfgFile string) error {
 	if err := InitFlags(cmdFlags); err != nil {
 		return err
@@ -23,6 +27,8 @@ func Init(cmdFlags *pflag.FlagSet, envPrefix string, cfgFile string) error {
 	return nil
 }
 
+// InitFlags binds a set of command-line flags to their corresponding configuration keys in viper.
+// If the flag has not been changed and has a non-zero length default value, it will mark the flag as changed.
 func InitFlags(cmdFlags *pflag.FlagSet) error {
 	//Make sure the default value also make sense
 	cmdFlags.VisitAll(func(f *pflag.Flag) {
@@ -36,6 +42,8 @@ func InitFlags(cmdFlags *pflag.FlagSet) error {
 	return nil
 }
 
+// InitEnvs sets up environment variables to override configuration values.
+// It takes a prefix for environment variable names, a delimiter for configuration keys, and an environment delimiter for replacing in keys.
 func InitEnvs(prefix, keyDelimiter, envDelimiter string) {
 	viper.AutomaticEnv() // automatically override values with those from the environment
 	viper.SetEnvPrefix(prefix)
@@ -43,24 +51,27 @@ func InitEnvs(prefix, keyDelimiter, envDelimiter string) {
 
 	prefix = prefix + "_"
 
-	// 遍历所有环境变量
+	// Traverse all environment variables
 	for _, env := range os.Environ() {
 		pair := strings.SplitN(env, "=", 2)
 		key := pair[0]
 
-		// 检查环境变量是否具有所需的前缀
+		// Check if the environment variable has the required prefix
 		if len(pair) > 1 && len(pair[1]) > 0 && strings.HasPrefix(key, prefix) {
-			// 绑定当前环境变量
-			envKey := key[len(prefix):]                                         // 移除前缀
-			configKey := strings.ReplaceAll(envKey, envDelimiter, keyDelimiter) //替换分割符号，一般是把_换为.
+			// Bind the current environment variable
+			envKey := key[len(prefix):]                                         // Remove the prefix
+			configKey := strings.ReplaceAll(envKey, envDelimiter, keyDelimiter) // Replace the delimiter, commonly changing '_' to '.'
 			_ = viper.BindEnv(configKey)
 
-			// 可以选择设置一个默认值，确保它出现在 AllKeys() 中
-			//viper.SetDefault(configKey, "")
+			// Optionally set a default value to ensure it appears in AllKeys()
+			// viper.SetDefault(configKey, "")
 		}
 	}
 }
 
+// InitConfig initializes configuration files using viper.
+// It takes paths to configuration file, file name, and file type.
+// If a configuration file is found, it will be read into viper.
 func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) {
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
@@ -82,23 +93,28 @@ func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) {
 	}
 }
 
-// SetConfigFile Inherit from viper
+// SetConfigFile sets the path to the configuration file.
 func SetConfigFile(in string) {
 	viper.SetConfigFile(in)
 }
 
+// AddConfigPath adds a new path for viper to search for the configuration file in.
 func AddConfigPath(in string) {
 	viper.AddConfigPath(in)
 }
 
+// SetConfigName sets the name for the configuration file.
 func SetConfigName(in string) {
 	viper.SetConfigName(in)
 }
+
+// SetConfigType sets the type of the configuration file.
 func SetConfigType(in string) {
 	viper.SetConfigType(in)
 }
 
-// GetString Expand func with default value
+// GetString retrieves a string value from the configuration.
+// It returns a default value if the key is not set.
 func GetString(name string, def string) string {
 	if !viper.IsSet(name) {
 		return def
@@ -106,6 +122,8 @@ func GetString(name string, def string) string {
 	return viper.GetString(name)
 }
 
+// GetStrings retrieves a slice of strings from the configuration.
+// It returns a default value if the key is not set.
 func GetStrings(name string, def []string) []string {
 	if !viper.IsSet(name) {
 		return def
@@ -113,6 +131,8 @@ func GetStrings(name string, def []string) []string {
 	return viper.GetStringSlice(name)
 }
 
+// GetInt retrieves an integer value from the configuration.
+// It returns a default value if the key is not set.
 func GetInt(name string, def int) int {
 	if !viper.IsSet(name) {
 		return def
@@ -120,6 +140,8 @@ func GetInt(name string, def int) int {
 	return viper.GetInt(name)
 }
 
+// GetInt64 retrieves an int64 value from the configuration.
+// It returns a default value if the key is not set.
 func GetInt64(name string, def int64) int64 {
 	if !viper.IsSet(name) {
 		return def
@@ -127,6 +149,8 @@ func GetInt64(name string, def int64) int64 {
 	return viper.GetInt64(name)
 }
 
+// GetBool retrieves a boolean value from the configuration.
+// It returns a default value if the key is not set.
 func GetBool(name string, def bool) bool {
 	if !viper.IsSet(name) {
 		return def
@@ -134,6 +158,8 @@ func GetBool(name string, def bool) bool {
 	return viper.GetBool(name)
 }
 
+// GetFloat64 retrieves a float64 value from the configuration.
+// It returns a default value if the key is not set.
 func GetFloat64(name string, def float64) float64 {
 	if !viper.IsSet(name) {
 		return def
