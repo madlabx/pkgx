@@ -1,7 +1,6 @@
 package viperx
 
 import (
-	"fmt"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -22,7 +21,10 @@ func Init(cmdFlags *pflag.FlagSet, envPrefix string, cfgFile string) error {
 	}
 
 	InitEnvs(envPrefix, ".", "_")
-	InitConfig(cfgFile, ",", "", "")
+	
+	if err := InitConfig(cfgFile, ",", "", ""); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -72,7 +74,7 @@ func InitEnvs(prefix, keyDelimiter, envDelimiter string) {
 // InitConfig initializes configuration files using viper.
 // It takes paths to configuration file, file name, and file type.
 // If a configuration file is found, it will be read into viper.
-func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) {
+func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) error {
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -88,9 +90,15 @@ func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) {
 	}
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	if err := viper.ReadInConfig(); err != nil {
+		return err
 	}
+
+	return nil
+}
+
+func ConfigFileUsed() string {
+	return viper.ConfigFileUsed()
 }
 
 // SetConfigFile sets the path to the configuration file.
