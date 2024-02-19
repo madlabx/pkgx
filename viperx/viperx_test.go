@@ -8,9 +8,7 @@ import (
 )
 
 func TestTomls(t *testing.T) {
-	cfgFile := "./test.toml"
-
-	viper.SetConfigFile(cfgFile)
+	viper.SetConfigFile("")
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatalf("Can't read config:%v", err)
 	}

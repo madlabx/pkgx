@@ -5,9 +5,12 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
-	"strconv"
 	"strings"
 )
+
+func Unmarshal(rawVal any, opts ...viper.DecoderConfigOption) error {
+	return viper.Unmarshal(rawVal, opts...)
+}
 
 func Init(cmdFlags *pflag.FlagSet, envPrefix string, cfgFile string) error {
 	if err := InitFlags(cmdFlags); err != nil {
@@ -79,20 +82,31 @@ func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) {
 	}
 }
 
-func GetString(name string, def string) string {
+// SetConfigFile Inherit from viper
+func SetConfigFile(in string) {
+	viper.SetConfigFile(in)
+}
 
+func AddConfigPath(in string) {
+	viper.AddConfigPath(in)
+}
+
+func SetConfigName(in string) {
+	viper.SetConfigName(in)
+}
+func SetConfigType(in string) {
+	viper.SetConfigType(in)
+}
+
+// GetString Expand func with default value
+func GetString(name string, def string) string {
 	if !viper.IsSet(name) {
-		value := os.Getenv(name)
-		if len(value) > 0 {
-			return value
-		}
 		return def
 	}
 	return viper.GetString(name)
 }
 
 func GetStrings(name string, def []string) []string {
-
 	if !viper.IsSet(name) {
 		return def
 	}
@@ -100,69 +114,28 @@ func GetStrings(name string, def []string) []string {
 }
 
 func GetInt(name string, def int) int {
-
 	if !viper.IsSet(name) {
-		value, ok := os.LookupEnv(name)
-		if ok {
-			valueF64, err := strconv.ParseInt(value, 10, 32)
-			if err != nil {
-				fmt.Printf("Failed GetFloat64(%v, %v), err:%v", name, def, err)
-			} else {
-				return int(valueF64)
-			}
-		}
 		return def
 	}
 	return viper.GetInt(name)
 }
 
 func GetInt64(name string, def int64) int64 {
-
 	if !viper.IsSet(name) {
-		value, ok := os.LookupEnv(name)
-		if ok {
-			valueF64, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				fmt.Printf("Failed GetFloat64(%v, %v), err:%v", name, def, err)
-			} else {
-				return valueF64
-			}
-		}
 		return def
 	}
 	return viper.GetInt64(name)
 }
 
 func GetBool(name string, def bool) bool {
-
 	if !viper.IsSet(name) {
-		value, ok := os.LookupEnv(name)
-		if ok {
-			if value == "true" {
-				return true
-			}
-			if value == "false" {
-				return false
-			}
-			fmt.Printf("Failed GetBool(%v, %v), invalid value:%v", name, def, value)
-		}
 		return def
 	}
 	return viper.GetBool(name)
 }
 
 func GetFloat64(name string, def float64) float64 {
-
 	if !viper.IsSet(name) {
-		value, ok := os.LookupEnv(name)
-		if ok {
-			valueF64, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				fmt.Printf("Failed GetFloat64(%v, %v), err:%v", name, def, err)
-			} else {
-				return valueF64
-			}
-		}
 		return def
 	}
 	return viper.GetFloat64(name)
