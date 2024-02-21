@@ -21,7 +21,7 @@ func Init(cmdFlags *pflag.FlagSet, envPrefix string, cfgFile string) error {
 	}
 
 	InitEnvs(envPrefix, ".", "_")
-	
+
 	if err := InitConfig(cfgFile, ",", "", ""); err != nil {
 		return err
 	}
