@@ -41,6 +41,19 @@ func New(ctx context.Context, logConfig LogConfig) (*ApiGateway, error) {
 	return agw, nil
 }
 
+func (agw *ApiGateway) Run(ip, port string) error {
+	showEcho(agw.echo)
+	return startEcho(agw.echo, fmt.Sprintf("%s:%s", ip, port))
+}
+
+func (agw *ApiGateway) Stop() {
+	shutdownEcho(agw.echo)
+}
+
+func (agw *ApiGateway) GetEcho() *echo.Echo {
+	return agw.echo
+}
+
 func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 	if agw.logger == nil {
 		agw.logger = log.New()
@@ -75,15 +88,6 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 	agw.logger.SetFormatter(&log.TextFormatter{QuoteEmptyFields: true})
 
 	return nil
-}
-
-func (agw *ApiGateway) Run(ip, port string) error {
-	showEcho(agw.echo)
-	return startEcho(agw.echo, fmt.Sprintf("%s:%s", ip, port))
-}
-
-func (agw *ApiGateway) Stop() {
-	shutdownEcho(agw.echo)
 }
 
 func isPrintableTextContent(contentType string) bool {

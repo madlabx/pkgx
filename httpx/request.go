@@ -15,7 +15,7 @@ func ValidateMust(input interface{}, keys ...string) error {
 			field := t.Field(i)
 			value := v.Field(i)
 			if field.Name == key && value.IsZero() {
-				return errors.MessageResp(400, errors.ECODE_BAD_REQUEST, "Need "+key)
+				return MessageResp(http.StatusBadRequest, handleGetECodeBadRequest(), "Need "+key)
 			}
 		}
 	}
@@ -27,7 +27,7 @@ func QueryMustParam(c echo.Context, key string) (string, error) {
 	var err error
 	value := c.QueryParam(key)
 	if len(value) == 0 {
-		err = errors.MessageResp(http.StatusBadRequest, errors.ECODE_BAD_REQUEST, "Missing "+key)
+		err = MessageResp(http.StatusBadRequest, handleGetECodeBadRequest(), "Missing "+key)
 	}
 
 	return value, err

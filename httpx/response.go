@@ -10,25 +10,6 @@ import (
 	"os"
 )
 
-var (
-	handleGetECodeSuccess       func() int
-	handleGetECodeInternalError func() int
-	handleErrToECode            func(error) int
-	handleErrToHttpStatus       func(error) int
-	handleECodeToStr            func(int) string
-)
-
-func RegisterHandle(funcGetECodeSuccess, funcGetECodeInternalError func() int,
-	funcErrToECode, funcErrToHttpStatus func(error) int,
-	funcECodeToStr func(int) string) {
-
-	handleGetECodeSuccess = funcGetECodeSuccess
-	handleGetECodeInternalError = funcGetECodeInternalError
-	handleErrToECode = funcErrToECode
-	handleErrToHttpStatus = funcErrToHttpStatus
-	handleECodeToStr = funcECodeToStr
-}
-
 type JsonResponse struct {
 	Status    int     `json:"-"`
 	Code      *string `json:"Code,omitempty"`
