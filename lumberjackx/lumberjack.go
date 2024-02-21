@@ -116,7 +116,7 @@ type Logger struct {
 	startMill sync.Once
 
 	//context to control life circle of mill
-	ctx context.Context
+	Ctx context.Context
 }
 
 var (
@@ -390,7 +390,7 @@ func (l *Logger) millRun() {
 			case false:
 				return
 			}
-		case <-l.ctx.Done():
+		case <-l.Ctx.Done():
 			return
 		}
 	}
@@ -399,8 +399,8 @@ func (l *Logger) millRun() {
 // mill performs post-rotation compression and removal of stale log files,
 // starting the mill goroutine if necessary.
 func (l *Logger) mill() {
-	if l.ctx == nil {
-		panic("Need ctx")
+	if l.Ctx == nil {
+		panic("Need Ctx")
 	}
 	l.startMill.Do(func() {
 		l.millCh = make(chan bool, 1)
