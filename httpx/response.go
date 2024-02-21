@@ -33,7 +33,7 @@ func (e *JsonResponse) IsNoContent() bool {
 	return e.Code == nil && e.CodeInt == nil && e.Result == nil && e.RequestId == nil
 }
 
-func GetStatusErrorCode(err error) int {
+func GetECode(err error) int {
 	if err == nil {
 		return handleGetECodeSuccess()
 	}
@@ -41,7 +41,7 @@ func GetStatusErrorCode(err error) int {
 	case *JsonResponse:
 		return *e.CodeInt
 	default:
-		return handleGetECodeSuccess()
+		return handleErrToECode(err)
 	}
 }
 
