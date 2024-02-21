@@ -32,7 +32,7 @@ func init() {
 	}
 
 	handleErrToHttpStatus = handleErrToECode
-	
+
 	handleECodeToStr = http.StatusText
 }
 

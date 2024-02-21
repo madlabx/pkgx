@@ -25,38 +25,34 @@ type LogConfig struct {
 }
 
 type ApiGateway struct {
-	echo   *echo.Echo
-	logger *logrus.Logger
+	Echo   *echo.Echo
+	Logger *logrus.Logger
 }
 
 func New(ctx context.Context, logConfig LogConfig) (*ApiGateway, error) {
 	agw := &ApiGateway{
-		echo: echo.New(),
+		Echo: echo.New(),
 	}
 	if err := agw.initAccessLog(ctx, logConfig); err != nil {
 		return nil, err
 	}
 
-	configEcho(agw.echo)
+	configEcho(agw.Echo)
 	return agw, nil
 }
 
 func (agw *ApiGateway) Run(ip, port string) error {
-	showEcho(agw.echo)
-	return startEcho(agw.echo, fmt.Sprintf("%s:%s", ip, port))
+	showEcho(agw.Echo)
+	return startEcho(agw.Echo, fmt.Sprintf("%s:%s", ip, port))
 }
 
 func (agw *ApiGateway) Stop() {
-	shutdownEcho(agw.echo)
-}
-
-func (agw *ApiGateway) GetEcho() *echo.Echo {
-	return agw.echo
+	shutdownEcho(agw.Echo)
 }
 
 func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
-	if agw.logger == nil {
-		agw.logger = log.New()
+	if agw.Logger == nil {
+		agw.Logger = log.New()
 	}
 
 	level, err := logrus.ParseLevel(lc.level)
@@ -66,13 +62,13 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 
 	switch lc.logOutput {
 	case "stdout":
-		agw.logger.SetOutput(os.Stdout)
+		agw.Logger.SetOutput(os.Stdout)
 	case "stderr":
-		agw.logger.SetOutput(os.Stderr)
+		agw.Logger.SetOutput(os.Stderr)
 	case "":
-		agw.logger.SetOutput(os.Stdout)
+		agw.Logger.SetOutput(os.Stdout)
 	default:
-		agw.logger.SetOutput(&lumberjackx.Logger{
+		agw.Logger.SetOutput(&lumberjackx.Logger{
 			Ctx:        ctx,
 			Filename:   lc.logOutput,
 			MaxSize:    lc.logSize,    // megabytes
@@ -83,9 +79,9 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 		})
 	}
 
-	agw.logger.SetLevel(level)
+	agw.Logger.SetLevel(level)
 
-	agw.logger.SetFormatter(&log.TextFormatter{QuoteEmptyFields: true})
+	agw.Logger.SetFormatter(&log.TextFormatter{QuoteEmptyFields: true})
 
 	return nil
 }
@@ -102,7 +98,7 @@ func isPrintableTextContent(contentType string) bool {
 }
 
 func configEcho(e *echo.Echo) {
-	// Tags to construct the logger format.
+	// Tags to construct the Logger format.
 	//
 	// - time_unix
 	// - time_unix_nano
@@ -156,12 +152,12 @@ func configEcho(e *echo.Echo) {
 		AllowMethods:     []string{"*"},
 		AllowHeaders:     []string{"*"},
 		AllowCredentials: true,
-		//AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
+		//AllowMethods: []string{Echo.GET, Echo.PUT, Echo.POST, Echo.DELETE},
 	}))
 
 	//TODO 检查是否可以恢复。不注释回无法下载css
-	//e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-	//	return func(c echo.Context) error {
+	//e.Use(func(next Echo.HandlerFunc) Echo.HandlerFunc {
+	//	return func(c Echo.Context) error {
 	//		c.Response().Header().Set("Content-Security-Policy", `default-src 'self'; style-src 'unsafe-inline';`)
 	//		return next(c)
 	//	}
@@ -183,7 +179,7 @@ func shutdownEcho(e *echo.Echo) {
 	defer cancel()
 	err := e.Shutdown(ctx)
 	if err != nil {
-		log.Errorf("Failed to close echo: %v", e)
+		log.Errorf("Failed to close Echo: %v", e)
 	}
 	log.Infof("Close service: %v", e)
 }
