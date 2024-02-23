@@ -32,10 +32,6 @@ func New() *ViperX {
 }
 
 func (o *ViperX) BindFlags(fs *pflag.FlagSet) error {
-	if err := o.v.BindPFlags(fs); err != nil {
-		return err
-	}
-
 	//Make sure the default value in flag also make sense
 	fs.VisitAll(func(f *pflag.Flag) {
 		if !f.Changed && len(f.Value.String()) != 0 {
@@ -86,13 +82,15 @@ func Unmarshal(cfg any, opts ...viper.DecoderConfigOption) (err error) {
 func BindAllFlags(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption) (*pflag.FlagSet, error) {
 	if fs == nil {
 		fs = pflag.NewFlagSet("viperx", pflag.ContinueOnError)
+	} else if err := vx.BindFlags(fs); err != nil {
+		return fs, err
 	}
 
 	if err := parse(fs, reflect.TypeOf(cfg), getMapStructureTagName(opts...)); err != nil {
 		return nil, err
 	}
 
-	return fs, vx.BindFlags(fs)
+	return fs, nil
 }
 
 // ParseConfig parse config in order by cli flags, env, config, default

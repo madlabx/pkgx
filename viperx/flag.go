@@ -83,11 +83,16 @@ func parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) 
 
 			if len(vxName) == 0 {
 				fs.StringP(keyPath, vxShort, vxDefault, vxDesc)
+				if err = vx.v.BindPFlag(keyPath, fs.Lookup(keyPath)); err != nil {
+					return err
+				}
+				vx.v.SetDefault(keyPath, vxDefault)
 			} else {
 				fs.StringP(vxName, vxShort, vxDefault, vxDesc)
 				if err = vx.v.BindPFlag(keyPath, fs.Lookup(vxName)); err != nil {
 					return err
 				}
+				vx.v.SetDefault(keyPath, vxDefault)
 			}
 		}
 	}
