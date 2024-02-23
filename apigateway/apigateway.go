@@ -17,11 +17,11 @@ import (
 )
 
 type LogConfig struct {
-	logOutput  string
-	level      string
-	logSize    int
-	logBackNum int
-	logAgeDays int
+	Output  string
+	Level   string
+	Size    int
+	BackNum int
+	AgeDays int
 }
 
 type ApiGateway struct {
@@ -55,12 +55,12 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 		agw.Logger = log.New()
 	}
 
-	level, err := logrus.ParseLevel(lc.level)
+	level, err := logrus.ParseLevel(lc.Level)
 	if err != nil {
 		return err
 	}
 
-	switch lc.logOutput {
+	switch lc.Output {
 	case "stdout":
 		agw.Logger.SetOutput(os.Stdout)
 	case "stderr":
@@ -70,11 +70,11 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 	default:
 		agw.Logger.SetOutput(&lumberjackx.Logger{
 			Ctx:        ctx,
-			Filename:   lc.logOutput,
-			MaxSize:    lc.logSize,    // megabytes
-			MaxBackups: lc.logBackNum, //file number
-			MaxAge:     lc.logAgeDays, //days
-			Compress:   true,          // disabled by default
+			Filename:   lc.Output,
+			MaxSize:    lc.Size,    // megabytes
+			MaxBackups: lc.BackNum, //file number
+			MaxAge:     lc.AgeDays, //days
+			Compress:   true,       // disabled by default
 			LocalTime:  true,
 		})
 	}
