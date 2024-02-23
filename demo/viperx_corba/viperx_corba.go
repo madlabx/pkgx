@@ -57,7 +57,7 @@ func main() {
 
 // initConfig reads ENV variable and config file if set.
 func initConfig() {
-	if err := viperx.ParseConfig(&viperxConfig, "DEMO", "../conf/viperx.json"); err != nil {
-		fmt.Sprintln(err)
+	if err := viperx.ParseConfig(&viperxConfig, "DEMO", "conf/viperx.json"); err != nil {
+		fmt.Println(err)
 	}
 }
