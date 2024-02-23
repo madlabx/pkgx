@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/madlabx/pkgx/log"
 	"github.com/madlabx/pkgx/utils"
 	"github.com/madlabx/pkgx/viperx"
 	"github.com/sirupsen/logrus"
@@ -37,11 +38,12 @@ func main() {
 
 	// 创建一个TextFormatter并自定义输出格式
 	// 例如，我们添加了时间戳和日志级别
-	formatter := &logrus.TextFormatter{
+	formatter := &log.TextFormatter{
 		TimestampFormat:  "2006-01-02 15:04:05",
 		FullTimestamp:    true,
 		ForceColors:      true,
 		DisableColors:    false,
+		DisableFileLine:  false,
 		QuoteEmptyFields: true,
 		DisableSorting:   true,
 	}

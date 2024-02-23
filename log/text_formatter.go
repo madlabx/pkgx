@@ -29,7 +29,7 @@ var (
 	emptyFieldMap logrus.FieldMap
 )
 
-//const defaultTimestampFormat = time.RFC3339
+// const defaultTimestampFormat = time.RFC3339
 const defaultTimestampFormat = "2006/01/02 15:04:05.000"
 
 func init() {
@@ -213,12 +213,18 @@ func (f *TextFormatter) printColored(b *bytes.Buffer, entry *logrus.Entry, keys 
 		levelText = levelText[0:4]
 	}
 
+	fl := " "
+	if !f.DisableFileLine {
+		fl, _ = getRunTimeInfoString(9)
+		fl += " "
+	}
+
 	if f.DisableTimestamp {
-		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m %-44s ", levelColor, levelText, entry.Message)
+		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m %v%-44s ", levelColor, levelText, fl, entry.Message)
 	} else if !f.FullTimestamp {
-		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%04d] %-44s ", levelColor, levelText, int(entry.Time.Sub(baseTimestamp)/time.Second), entry.Message)
+		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%04d] %v%-44s ", levelColor, levelText, int(entry.Time.Sub(baseTimestamp)/time.Second), fl, entry.Message)
 	} else {
-		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %-44s ", levelColor, levelText, entry.Time.Format(timestampFormat), entry.Message)
+		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %v%-44s ", levelColor, levelText, entry.Time.Format(timestampFormat), fl, entry.Message)
 	}
 	for _, k := range keys {
 		v := entry.Data[k]
