@@ -13,12 +13,12 @@ type ConfigSys struct {
 }
 
 type NetCap struct {
-	Bw int64 `vxflag:"default:100;desc:bandwith"`
+	Bw int64 `vx_flag:";;100;bandwith"`
 }
 
 type Config struct {
 	Sys ConfigSys
-	Ttt int64 `vxflag:"name:ttt;short:t;default:1234;desc:test for ttt"`
+	Ttt int64 `vx_name:"ttt" vx_short:"t" vx_default:"1234" vx_desc:"test for ttt"`
 	Nc  NetCap
 }
 

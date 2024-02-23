@@ -11,11 +11,11 @@ import (
 // TODO 增加must，必须项
 var (
 	DefaultMapStructureTagName = "mapstructure"
-	TagViperX                  = "vxflag"
-	FieldName                  = "name"
-	FieldDefault               = "default"
-	FieldDescription           = "desc"
-	FieldShort                 = "short"
+	TagViperX                  = "vx_flag"
+	TagFieldName               = "vx_name"
+	TagFieldDefault            = "vx_default"
+	TagFieldDescription        = "vx_desc"
+	TagFieldShort              = "vx_short"
 )
 
 func getMapStructureTagName(opts ...viper.DecoderConfigOption) string {
@@ -41,6 +41,26 @@ func parseTypeName(t reflect.StructField, tagName string) string {
 	}
 }
 
+func parseFlatStyle(vxTag string) (string, string, string, string) {
+	kv := strings.Split(vxTag, ";")
+	if len(kv) == 4 {
+		return kv[0], kv[1], kv[2], kv[3]
+	} else {
+		return "", "", "", ""
+	}
+}
+
+func parseFlagOpts(tag reflect.StructTag) (string, string, string, string) {
+	vxTagString, ok := tag.Lookup(TagViperX)
+	if ok {
+		//Address  string `vx_flag:"address;a;127.0.0.1;address to listen on"`
+		return parseFlatStyle(vxTagString)
+	} else {
+		//Address  string `vx_name:"address" vx_short:"a" vx_default:"127.0.0.1" vx_desc:"address to listen on"`
+		return tag.Get(TagFieldName), tag.Get(TagFieldShort), tag.Get(TagFieldDefault), tag.Get(TagFieldDescription)
+	}
+}
+
 // TODO 是否可以用DecodeHookFunc更优雅地实现?
 func parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) error {
 	var (
@@ -58,39 +78,14 @@ func parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) 
 				err = parse(fs, t.Type, tagName, append(parts, fieldName)...)
 			}
 		default: // Handle leaf field
-			vxTagString, ok := t.Tag.Lookup(TagViperX)
-			if !ok {
-				continue
-			}
-
 			keyPath := strings.Join(append(parts, fieldName), ".")
+			vxName, vxShort, vxDefault, vxDesc := parseFlagOpts(t.Tag)
 
-			vxFlagOpts := strings.Split(vxTagString, ";")
-			vxFlagName := ""
-			vxFlagDefault := ""
-			vxFlagDesc := ""
-			vxFlagShort := ""
-			for _, opt := range vxFlagOpts {
-				kv := strings.Split(opt, ":")
-				if len(kv) == 2 {
-					if kv[0] == FieldName {
-						//TODO validate name
-						vxFlagName = kv[1]
-					} else if kv[0] == FieldDefault {
-						vxFlagDefault = kv[1]
-					} else if kv[0] == FieldDescription {
-						vxFlagDesc = kv[1]
-					} else if kv[0] == FieldShort {
-						vxFlagShort = kv[1]
-					}
-				}
-			}
-
-			if len(vxFlagName) == 0 {
-				fs.StringP(keyPath, vxFlagShort, vxFlagDefault, vxFlagDesc)
+			if len(vxName) == 0 {
+				fs.StringP(keyPath, vxShort, vxDefault, vxDesc)
 			} else {
-				fs.StringP(vxFlagName, vxFlagShort, vxFlagDefault, vxFlagDesc)
-				if err = vx.v.BindPFlag(keyPath, fs.Lookup(vxFlagName)); err != nil {
+				fs.StringP(vxName, vxShort, vxDefault, vxDesc)
+				if err = vx.v.BindPFlag(keyPath, fs.Lookup(vxName)); err != nil {
 					return err
 				}
 			}
