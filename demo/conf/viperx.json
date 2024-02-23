@@ -3,8 +3,6 @@
     "logLevel": "config_file_dev",
     "size": 123
   },
-  "sys2": {
-    "logLevel": "config_file_sys1_dev",
-    "size": 1234
+  "user": {
   }
 }

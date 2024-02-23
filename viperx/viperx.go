@@ -4,52 +4,54 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
+	"reflect"
 	"strings"
 )
 
-// Unmarshal decodes the configuration into a struct using viper.Unmarshal.
-// It accepts any type of rawVal where configuration data will be stored, and opts for decoder options.
-func Unmarshal(rawVal any, opts ...viper.DecoderConfigOption) error {
-	return viper.Unmarshal(rawVal, opts...)
+type ViperX struct {
+	v *viper.Viper
+	//flags *pflag.FlagSet
 }
 
-// Init initializes the configuration by setting up flags, environment variables, and configuration files.
-// It takes a FlagSet for command-line arguments, a prefix for environment variables, and a path to the configuration file.
-func Init(cmdFlags *pflag.FlagSet, envPrefix string, cfgFile string) error {
-	if err := InitFlags(cmdFlags); err != nil {
+var (
+	vx *ViperX
+)
+
+func init() {
+	vx = New()
+}
+
+func GetViper() *viper.Viper {
+	return vx.v
+}
+
+func New() *ViperX {
+	return &ViperX{
+		v: viper.GetViper(),
+	}
+}
+
+func (o *ViperX) BindFlags(fs *pflag.FlagSet) error {
+	if err := o.v.BindPFlags(fs); err != nil {
 		return err
 	}
 
-	InitEnvs(envPrefix, ".", "_")
-
-	if err := InitConfig(cfgFile, ",", "", ""); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// InitFlags binds a set of command-line flags to their corresponding configuration keys in viper.
-// If the flag has not been changed and has a non-zero length default value, it will mark the flag as changed.
-func InitFlags(cmdFlags *pflag.FlagSet) error {
-	//Make sure the default value also make sense
-	cmdFlags.VisitAll(func(f *pflag.Flag) {
+	//Make sure the default value in flag also make sense
+	fs.VisitAll(func(f *pflag.Flag) {
 		if !f.Changed && len(f.Value.String()) != 0 {
-			f.Changed = true
+			o.v.SetDefault(f.Name, f.DefValue)
 		}
 	})
-	if cmdFlags != nil {
-		return viper.BindPFlags(cmdFlags)
-	}
+
 	return nil
 }
 
-// InitEnvs sets up environment variables to override configuration values.
+// BindEnvs sets up environment variables to override configuration values.
 // It takes a prefix for environment variable names, a delimiter for configuration keys, and an environment delimiter for replacing in keys.
-func InitEnvs(prefix, keyDelimiter, envDelimiter string) {
-	viper.AutomaticEnv() // automatically override values with those from the environment
-	viper.SetEnvPrefix(prefix)
-	viper.SetEnvKeyReplacer(strings.NewReplacer(keyDelimiter, envDelimiter))
+func BindEnvs(prefix, keyDelimiter, envDelimiter string) {
+	vx.v.AutomaticEnv() // automatically override values with those from the environment
+	vx.v.SetEnvPrefix(prefix)
+	vx.v.SetEnvKeyReplacer(strings.NewReplacer(keyDelimiter, envDelimiter))
 
 	prefix = prefix + "_"
 
@@ -63,114 +65,157 @@ func InitEnvs(prefix, keyDelimiter, envDelimiter string) {
 			// Bind the current environment variable
 			envKey := key[len(prefix):]                                         // Remove the prefix
 			configKey := strings.ReplaceAll(envKey, envDelimiter, keyDelimiter) // Replace the delimiter, commonly changing '_' to '.'
-			_ = viper.BindEnv(configKey)
+			_ = vx.v.BindEnv(configKey)
 
 			// Optionally set a default value to ensure it appears in AllKeys()
-			// viper.SetDefault(configKey, "")
+			// vx.v.SetDefault(configKey, "")
 		}
 	}
 }
 
-// InitConfig initializes configuration files using viper.
+// Unmarshal decodes the configuration into a struct using viper.Unmarshal.
+// It accepts any type of rawVal where configuration data will be stored, and opts for decoder options.
+func Unmarshal(cfg any, opts ...viper.DecoderConfigOption) (err error) {
+	return vx.v.Unmarshal(cfg, opts...)
+}
+
+// BindAllFlags 添加cfg结构体中vxflags标记的Flag，并返回完整的FlagSet
+// （推荐）若未定义name，name解析为cfg结构体成员名，多级使用"."相连
+// 否则，解析为name
+// 若fs为空，会初始化一个新的
+func BindAllFlags(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption) (*pflag.FlagSet, error) {
+	if fs == nil {
+		fs = pflag.NewFlagSet("viperx", pflag.ContinueOnError)
+	}
+
+	if err := parse(fs, reflect.TypeOf(cfg), getMapStructureTagName(opts...)); err != nil {
+		return nil, err
+	}
+
+	return fs, vx.BindFlags(fs)
+}
+
+// ParseConfig parse config in order by cli flags, env, config, default
+func ParseConfig(cfg any, envPrefix string, cfgFile string, opts ...viper.DecoderConfigOption) error {
+	//TODO make sure BindAllFlags before
+	BindEnvs(envPrefix, ".", "_")
+	if err := InitConfigFile(cfgFile, ",", "", ""); err != nil {
+		return err
+	}
+
+	return viper.Unmarshal(&cfg, opts...)
+}
+
+// InitConfigFile initializes configuration files using viper.
 // It takes paths to configuration file, file name, and file type.
 // If a configuration file is found, it will be read into viper.
-func InitConfig(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) error {
+func InitConfigFile(cfgFile, cfgFilePath, cfgFileName, cfgFileType string) error {
 	if cfgFile != "" { // enable ability to specify config file via flag
-		viper.SetConfigFile(cfgFile)
+		vx.v.SetConfigFile(cfgFile)
 	} else {
 		if cfgFilePath != "" {
-			viper.AddConfigPath(cfgFilePath)
+			vx.v.AddConfigPath(cfgFilePath)
 		}
 		if cfgFileName != "" { // adding home directory as first search path
-			viper.SetConfigName(cfgFileName)
+			vx.v.SetConfigName(cfgFileName)
 		}
 		if cfgFileType != "" {
-			viper.SetConfigType(cfgFileType)
+			vx.v.SetConfigType(cfgFileType)
 		}
 	}
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err != nil {
+	if err := vx.v.ReadInConfig(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+func BindPFlag(key string, flag *pflag.Flag) error { return vx.v.BindPFlag(key, flag) }
+
+func BindPFlags(flags *pflag.FlagSet) error { return vx.v.BindPFlags(flags) }
+
 func ConfigFileUsed() string {
-	return viper.ConfigFileUsed()
+	return vx.v.ConfigFileUsed()
 }
 
 // SetConfigFile sets the path to the configuration file.
 func SetConfigFile(in string) {
-	viper.SetConfigFile(in)
+	vx.v.SetConfigFile(in)
 }
 
 // AddConfigPath adds a new path for viper to search for the configuration file in.
 func AddConfigPath(in string) {
-	viper.AddConfigPath(in)
+	vx.v.AddConfigPath(in)
 }
 
 // SetConfigName sets the name for the configuration file.
 func SetConfigName(in string) {
-	viper.SetConfigName(in)
+	vx.v.SetConfigName(in)
 }
 
 // SetConfigType sets the type of the configuration file.
 func SetConfigType(in string) {
-	viper.SetConfigType(in)
+	vx.v.SetConfigType(in)
+}
+
+func ReadInConfig() error {
+	return vx.v.ReadInConfig()
 }
 
 // GetString retrieves a string value from the configuration.
 // It returns a default value if the key is not set.
 func GetString(name string, def string) string {
-	if !viper.IsSet(name) {
+	rst := vx.v.GetString(name)
+	if len(rst) == 0 {
 		return def
 	}
-	return viper.GetString(name)
+
+	return rst
 }
 
 // GetStrings retrieves a slice of strings from the configuration.
 // It returns a default value if the key is not set.
 func GetStrings(name string, def []string) []string {
-	if !viper.IsSet(name) {
+	if !vx.v.IsSet(name) {
 		return def
 	}
-	return viper.GetStringSlice(name)
+	return vx.v.GetStringSlice(name)
 }
 
 // GetInt retrieves an integer value from the configuration.
 // It returns a default value if the key is not set.
 func GetInt(name string, def int) int {
-	if !viper.IsSet(name) {
+	if !vx.v.IsSet(name) {
 		return def
 	}
-	return viper.GetInt(name)
+	return vx.v.GetInt(name)
 }
 
 // GetInt64 retrieves an int64 value from the configuration.
 // It returns a default value if the key is not set.
 func GetInt64(name string, def int64) int64 {
-	if !viper.IsSet(name) {
+	if !vx.v.IsSet(name) {
 		return def
 	}
-	return viper.GetInt64(name)
+	return vx.v.GetInt64(name)
 }
 
 // GetBool retrieves a boolean value from the configuration.
 // It returns a default value if the key is not set.
 func GetBool(name string, def bool) bool {
-	if !viper.IsSet(name) {
+	if !vx.v.IsSet(name) {
 		return def
 	}
-	return viper.GetBool(name)
+	return vx.v.GetBool(name)
 }
 
 // GetFloat64 retrieves a float64 value from the configuration.
 // It returns a default value if the key is not set.
 func GetFloat64(name string, def float64) float64 {
-	if !viper.IsSet(name) {
+	if !vx.v.IsSet(name) {
 		return def
 	}
-	return viper.GetFloat64(name)
+	return vx.v.GetFloat64(name)
 }
