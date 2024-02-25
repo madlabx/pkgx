@@ -17,42 +17,60 @@ import (
 )
 
 type LogConfig struct {
-	Output  string
-	Level   string
-	Size    int
-	BackNum int
-	AgeDays int
+	Output         string
+	Level          string
+	Size           int
+	BackNum        int
+	AgeDays        int
+	Formatter      logrus.Formatter
+	BodyBufferSize int
 }
 
 type ApiGateway struct {
+	Ctx    context.Context
 	Echo   *echo.Echo
 	Logger *logrus.Logger
+	Lc     *LogConfig
 }
 
-func New(ctx context.Context, logConfig LogConfig) (*ApiGateway, error) {
+func New(pctx context.Context, lc *LogConfig) (*ApiGateway, error) {
 	agw := &ApiGateway{
+		Ctx:  context.WithoutCancel(pctx),
 		Echo: echo.New(),
+		Lc:   lc,
 	}
-	if err := agw.initAccessLog(ctx, logConfig); err != nil {
+
+	//if lc == nil, log to log.StandardLogger
+	if err := agw.initAccessLog(); err != nil {
 		return nil, err
 	}
 
-	configEcho(agw.Echo)
+	agw.configEcho()
 	return agw, nil
 }
 
 func (agw *ApiGateway) Run(ip, port string) error {
-	showEcho(agw.Echo)
-	return startEcho(agw.Echo, fmt.Sprintf("%s:%s", ip, port))
+	return agw.startEcho(fmt.Sprintf("%s:%s", ip, port))
 }
 
-func (agw *ApiGateway) Stop() {
-	shutdownEcho(agw.Echo)
+func (agw *ApiGateway) Stop() error {
+	return agw.shutdownEcho()
 }
 
-func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
-	if agw.Logger == nil {
-		agw.Logger = log.New()
+func (agw *ApiGateway) initAccessLog() error {
+	if agw.Lc == nil {
+		agw.Logger = log.StandardLogger()
+		agw.Lc = &LogConfig{
+			BodyBufferSize: 2000,
+		}
+		return nil
+	}
+
+	agw.Logger = log.New()
+
+	lc := agw.Lc
+	if lc.Level == "" {
+		lc.Level = "info" //by default, apply info
 	}
 
 	level, err := logrus.ParseLevel(lc.Level)
@@ -69,7 +87,7 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 		agw.Logger.SetOutput(os.Stdout)
 	default:
 		agw.Logger.SetOutput(&lumberjackx.Logger{
-			Ctx:        ctx,
+			Ctx:        context.WithoutCancel(agw.Ctx),
 			Filename:   lc.Output,
 			MaxSize:    lc.Size,    // megabytes
 			MaxBackups: lc.BackNum, //file number
@@ -80,8 +98,11 @@ func (agw *ApiGateway) initAccessLog(ctx context.Context, lc LogConfig) error {
 	}
 
 	agw.Logger.SetLevel(level)
+	agw.Logger.SetFormatter(lc.Formatter)
 
-	agw.Logger.SetFormatter(&log.TextFormatter{QuoteEmptyFields: true})
+	if agw.Lc.BodyBufferSize == 0 {
+		agw.Lc.BodyBufferSize = 2000
+	}
 
 	return nil
 }
@@ -97,7 +118,7 @@ func isPrintableTextContent(contentType string) bool {
 	return false
 }
 
-func configEcho(e *echo.Echo) {
+func (agw *ApiGateway) configEcho() {
 	// Tags to construct the Logger format.
 	//
 	// - time_unix
@@ -123,11 +144,14 @@ func configEcho(e *echo.Echo) {
 	// - header:<NAME>
 	// - query:<NAME>
 	// - form:<NAME>
+	var (
+		e = agw.Echo
+	)
 	format := "${time_rfc3339} ${status} ${method} ${latency_human} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${uri} ${id} ${error}\n"
 	e.Use(middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
 		Handler: func(c echo.Context, reqBody []byte, resBody []byte) {
-			lq := int(math.Min(float64(len(reqBody)), 2000))
-			lp := int(math.Min(float64(len(resBody)), 2000))
+			lq := int(math.Min(float64(len(reqBody)), float64(agw.Lc.BodyBufferSize)))
+			lp := int(math.Min(float64(len(resBody)), float64(agw.Lc.BodyBufferSize)))
 
 			contentType := c.Response().Header().Get(echo.HeaderContentType)
 
@@ -164,39 +188,25 @@ func configEcho(e *echo.Echo) {
 	//})
 }
 
-func startEcho(e *echo.Echo, addr string) error {
-	err := e.Start(addr)
-	if err != nil {
-		log.Errorf("Failed to bind address: %s, err[%v]", addr, err)
-		return err
-	}
-	log.Infof("Start service listen on: %s", addr)
-	return nil
+func (agw *ApiGateway) startEcho(addr string) error {
+	return agw.Echo.Start(addr)
 }
 
-func shutdownEcho(e *echo.Echo) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (agw *ApiGateway) shutdownEcho() error {
+	ctx, cancel := context.WithTimeout(agw.Ctx, 5*time.Second)
 	defer cancel()
-	err := e.Shutdown(ctx)
-	if err != nil {
-		log.Errorf("Failed to close Echo: %v", e)
-	}
-	log.Infof("Close service: %v", e)
+	return agw.Echo.Shutdown(ctx)
 }
 
-func showEcho(e *echo.Echo) {
+func (agw *ApiGateway) RoutesToString() string {
+	e := agw.Echo
+	routes := e.Routes()
+	sort.Slice(routes, func(i, j int) bool { return routes[i].Path < routes[j].Path })
 
-	routes := make([]struct {
-		m string
-		p string
-	}, len(e.Routes()))
-	for i, r := range e.Routes() {
-		routes[i].m = r.Method
-		routes[i].p = r.Path
-	}
-	sort.Slice(routes, func(i, j int) bool { return routes[i].p < routes[j].p })
-
+	var builder strings.Builder
 	for _, r := range routes {
-		log.Infof("%s %s", r.m, r.p)
+		builder.WriteString(fmt.Sprintf("%-10v %-20v %v\n", r.Method, r.Path, r.Name))
 	}
+
+	return builder.String()
 }

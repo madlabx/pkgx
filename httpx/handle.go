@@ -9,6 +9,7 @@ var (
 	handleErrToECode            func(error) int
 	handleErrToHttpStatus       func(error) int
 	handleECodeToStr            func(int) string
+	handleNewRequestId func(opt any) string
 )
 
 func init() {
@@ -37,8 +38,9 @@ func init() {
 }
 
 func RegisterHandle(funcGetECodeSuccess, funcGetECodeInternalError, funcGetECodeBadRequest func() int,
-	funcErrToECode, funcErrToHttpStatus func(error) int,
-	funcECodeToStr func(int) string) {
+		funcErrToECode, funcErrToHttpStatus func(error) int,
+		funcECodeToStr func(int) string)
+		funcNewRequestId()string{
 
 	handleGetECodeSuccess = funcGetECodeSuccess
 	handleGetECodeInternalError = funcGetECodeInternalError
@@ -46,4 +48,5 @@ func RegisterHandle(funcGetECodeSuccess, funcGetECodeInternalError, funcGetECode
 	handleErrToECode = funcErrToECode
 	handleErrToHttpStatus = funcErrToHttpStatus
 	handleECodeToStr = funcECodeToStr
+	handleNewRequestId = funcNewRequestId
 }

@@ -37,8 +37,9 @@ func GetECode(err error) int {
 	if err == nil {
 		return handleGetECodeSuccess()
 	}
-	switch e := err.(type) {
-	case *JsonResponse:
+	var e *JsonResponse
+	switch {
+	case errors.As(err, &e):
 		return *e.CodeInt
 	default:
 		return handleErrToECode(err)
@@ -49,12 +50,17 @@ func WrapperError(err error) error {
 	if err == nil {
 		return nil
 	}
-	switch e := err.(type) {
-	case *JsonResponse:
-		return e
-	case *echo.HTTPError:
-		return MessageResp(e.Code, handleErrToECode(err), fmt.Sprintf("%v", e.Message))
-	case *os.PathError:
+	var (
+		ej *JsonResponse
+		eh *echo.HTTPError
+		ep *os.PathError
+	)
+	switch {
+	case errors.As(err, &ej):
+		return ej
+	case errors.As(err, &eh):
+		return MessageResp(eh.Code, handleErrToECode(err), fmt.Sprintf("%v", eh.Message))
+	case errors.As(err, &ep):
 		return ErrorResp(handleErrToHttpStatus(err), handleErrToECode(err), err)
 	default:
 		return ErrorResp(handleErrToHttpStatus(err), handleErrToECode(err), err)
@@ -107,8 +113,9 @@ func ErrorResp(status, code int, err error) error {
 		msgPtr = &errStr
 	}
 
-	switch e := err.(type) {
-	case *JsonResponse:
+	var e *JsonResponse
+	switch {
+	case errors.As(err, &e):
 		e.Status = status
 		e.CodeInt = &code
 		e.Code = &codeStr
