@@ -1,6 +1,11 @@
 package httpx
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+
+	uuid "github.com/satori/go.uuid"
+)
 
 var (
 	handleGetECodeSuccess       func() int
@@ -9,7 +14,7 @@ var (
 	handleErrToECode            func(error) int
 	handleErrToHttpStatus       func(error) int
 	handleECodeToStr            func(int) string
-	handleNewRequestId func(opt any) string
+	handleNewRequestId          func() string
 )
 
 func init() {
@@ -35,18 +40,28 @@ func init() {
 	handleErrToHttpStatus = handleErrToECode
 
 	handleECodeToStr = http.StatusText
+
+	handleNewRequestId = func() string {
+		return strings.ToUpper(uuid.NewV4().String())
+	}
+}
+
+func setCb(f1, f2 any) {
+	if f2 != nil {
+		f1 = f2
+	}
 }
 
 func RegisterHandle(funcGetECodeSuccess, funcGetECodeInternalError, funcGetECodeBadRequest func() int,
-		funcErrToECode, funcErrToHttpStatus func(error) int,
-		funcECodeToStr func(int) string)
-		funcNewRequestId()string{
+	funcErrToECode, funcErrToHttpStatus func(error) int,
+	funcECodeToStr func(int) string,
+	funcNewRequestId func() string) {
 
-	handleGetECodeSuccess = funcGetECodeSuccess
-	handleGetECodeInternalError = funcGetECodeInternalError
-	handleGetECodeBadRequest = funcGetECodeBadRequest
-	handleErrToECode = funcErrToECode
-	handleErrToHttpStatus = funcErrToHttpStatus
-	handleECodeToStr = funcECodeToStr
-	handleNewRequestId = funcNewRequestId
+	setCb(handleGetECodeSuccess, funcGetECodeSuccess)
+	setCb(handleGetECodeInternalError, funcGetECodeInternalError)
+	setCb(handleGetECodeBadRequest, funcGetECodeBadRequest)
+	setCb(handleErrToECode, funcErrToECode)
+	setCb(handleErrToHttpStatus, funcErrToHttpStatus)
+	setCb(handleECodeToStr, funcECodeToStr)
+	setCb(handleNewRequestId, funcNewRequestId)
 }
