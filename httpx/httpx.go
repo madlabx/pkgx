@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/madlabx/pkgx/errors"
+	"github.com/madlabx/pkgx/errno"
 	"github.com/madlabx/pkgx/log"
 )
 
@@ -45,7 +45,7 @@ func HttpPostBody(url string, body interface{}, timeout int) (*http.Response, []
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		return nil, nil, errors.NewStatusError(http.StatusBadRequest, errors.ECODE_BAD_REQUEST_PARAM, err)
+		return nil, nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 	}
 
 	return requestBytesForBody("POST", url, b, timeout, true)
@@ -55,7 +55,7 @@ func HttpPost(url string, body interface{}, timeout int) (*http.Response, error)
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		return nil, errors.NewStatusError(http.StatusBadRequest, errors.ECODE_BAD_REQUEST_PARAM, err)
+		return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 	}
 
 	return requestBytes("POST", url, b, timeout)
@@ -83,7 +83,7 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 	rsp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, errors.UnWrapperError(err)
+		return nil, nil, WrapperError(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -130,7 +130,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 	rsp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, errors.UnWrapperError(err)
+		return nil, nil, WrapperError(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -142,33 +142,33 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 		body, err := ioutil.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, errors.NewStatusErrStr(rsp.StatusCode, errors.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			return nil, nil, MessageResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
 		}
 
 		//log.Errorf("Got not 200 response[%#v], body[%v]", rsp, string(body))
 
-		newStatusError := new(errors.StatusError)
-		err = json.Unmarshal(body, newStatusError)
+		var newStatusError JsonResponse
+		err = json.Unmarshal(body, &newStatusError)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, errors.NewStatusErrStr(rsp.StatusCode, errors.ECODE_FAILED_HTTP_REQUEST, "Failed to parse error information: "+string(body))
+			return nil, nil, MessageResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse error information: "+string(body))
 		}
 		newStatusError.Status = rsp.StatusCode
 
-		if newStatusError.Code == errors.ECODE_SUCCESS {
-			newStatusError.Code = errors.ECODE_FAILED_HTTP_REQUEST
-			newStatusError.Message = string(body)
+		if *newStatusError.CodeInt == errno.ECODE_SUCCESS {
+			*newStatusError.CodeInt = errno.ECODE_FAILED_HTTP_REQUEST
+			*newStatusError.Message = string(body)
 		}
 		//log.Errorf("err:%v", newStatusError)
 
-		return rsp, body, newStatusError
+		return rsp, body, &newStatusError
 	}
 
 	if wantBody {
 		body, err := ioutil.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, %v", err.Error())
-			return nil, nil, errors.NewStatusErrStr(rsp.StatusCode, errors.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			return nil, nil, MessageResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
 		}
 		return rsp, body, err
 	}
