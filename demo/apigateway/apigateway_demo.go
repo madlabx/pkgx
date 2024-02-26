@@ -17,9 +17,11 @@ func main() {
 
 	e := agw.Echo
 
-	e.Any("/status", func(ctx echo.Context) error {
+	httpx.RegisterHandle(func() int { return 0 }, nil, nil, nil, nil, nil, nil)
+
+	e.Any("/v1/file_service/health", func(ctx echo.Context) error {
 		log.Info("Request Status")
-		return httpx.SendResp(ctx, httpx.StatusResp(200))
+		return httpx.SendResp(ctx, httpx.SuccessResp("1110"))
 	})
 
 	log.Errorf("Routes:\n%v", agw.RoutesToString())

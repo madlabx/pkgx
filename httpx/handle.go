@@ -39,16 +39,16 @@ func init() {
 
 	handleErrToHttpStatus = handleErrToECode
 
-	handleECodeToStr = http.StatusText
+	handleECodeToStr = func(status int) string {
+		str := http.StatusText(status)
+		if len(str) == 0 {
+			str = "Unknown"
+		}
+		return str
+	}
 
 	handleNewRequestId = func() string {
 		return strings.ToUpper(uuid.NewV4().String())
-	}
-}
-
-func setCb(f1, f2 any) {
-	if f2 != nil {
-		f1 = f2
 	}
 }
 
@@ -57,11 +57,25 @@ func RegisterHandle(funcGetECodeSuccess, funcGetECodeInternalError, funcGetECode
 	funcECodeToStr func(int) string,
 	funcNewRequestId func() string) {
 
-	setCb(handleGetECodeSuccess, funcGetECodeSuccess)
-	setCb(handleGetECodeInternalError, funcGetECodeInternalError)
-	setCb(handleGetECodeBadRequest, funcGetECodeBadRequest)
-	setCb(handleErrToECode, funcErrToECode)
-	setCb(handleErrToHttpStatus, funcErrToHttpStatus)
-	setCb(handleECodeToStr, funcECodeToStr)
-	setCb(handleNewRequestId, funcNewRequestId)
+	if funcGetECodeSuccess != nil {
+		handleGetECodeSuccess = funcGetECodeSuccess
+	}
+	if funcGetECodeInternalError != nil {
+		handleGetECodeInternalError = funcGetECodeInternalError
+	}
+	if funcGetECodeBadRequest != nil {
+		handleGetECodeBadRequest = funcGetECodeBadRequest
+	}
+	if funcErrToECode != nil {
+		handleErrToECode = funcErrToECode
+	}
+	if funcErrToHttpStatus != nil {
+		handleErrToHttpStatus = funcErrToHttpStatus
+	}
+	if funcECodeToStr != nil {
+		handleECodeToStr = funcECodeToStr
+	}
+	if funcNewRequestId != nil {
+		handleNewRequestId = funcNewRequestId
+	}
 }
