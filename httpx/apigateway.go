@@ -1,4 +1,4 @@
-package apigateway
+package httpx
 
 import (
 	"context"
@@ -34,7 +34,7 @@ type ApiGateway struct {
 	LogFormat logrus.Formatter
 }
 
-func New(pctx context.Context, lc *LogConfig, f logrus.Formatter) (*ApiGateway, error) {
+func NewGateway(pctx context.Context, lc *LogConfig, f logrus.Formatter) (*ApiGateway, error) {
 	agw := &ApiGateway{
 		Ctx:       context.WithoutCancel(pctx),
 		Echo:      echo.New(),
