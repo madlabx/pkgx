@@ -27,21 +27,23 @@ type LogConfig struct {
 }
 
 type ApiGateway struct {
-	Ctx    context.Context
-	Echo   *echo.Echo
-	Logger *logrus.Logger
-	Lc     *LogConfig
+	Ctx       context.Context
+	Echo      *echo.Echo
+	Logger    *logrus.Logger
+	LogConf   *LogConfig
+	LogFormat logrus.Formatter
 }
 
 func New(pctx context.Context, lc *LogConfig, f logrus.Formatter) (*ApiGateway, error) {
 	agw := &ApiGateway{
-		Ctx:  context.WithoutCancel(pctx),
-		Echo: echo.New(),
-		Lc:   lc,
+		Ctx:       context.WithoutCancel(pctx),
+		Echo:      echo.New(),
+		LogConf:   lc,
+		LogFormat: f,
 	}
 
 	//if lc == nil, log to log.StandardLogger
-	if err := agw.initAccessLog(f); err != nil {
+	if err := agw.initAccessLog(); err != nil {
 		return nil, err
 	}
 
@@ -57,18 +59,21 @@ func (agw *ApiGateway) Stop() error {
 	return agw.shutdownEcho()
 }
 
-func (agw *ApiGateway) initAccessLog(f logrus.Formatter) error {
-	if agw.Lc == nil {
+func (agw *ApiGateway) initAccessLog() error {
+	if agw.LogConf == nil {
 		agw.Logger = log.StandardLogger()
-		agw.Lc = &LogConfig{
+		agw.LogConf = &LogConfig{
 			BodyBufferSize: 2000,
 		}
 		return nil
 	}
+	if agw.LogFormat == nil {
+		agw.LogFormat = &log.TextFormatter{}
+	}
 
 	agw.Logger = log.New()
 
-	lc := agw.Lc
+	lc := agw.LogConf
 	if lc.Level == "" {
 		lc.Level = "info" //by default, apply info
 	}
@@ -98,15 +103,11 @@ func (agw *ApiGateway) initAccessLog(f logrus.Formatter) error {
 	}
 
 	agw.Logger.SetLevel(level)
-
-	if f == nil {
-		f = &log.TextFormatter{}
-	}
-	agw.Logger.SetFormatter(f)
+	agw.Logger.SetFormatter(agw.LogFormat)
 	//lc.Formatter = &log.TextFormatter{QuoteEmptyFields: true}
 
-	if agw.Lc.BodyBufferSize == 0 {
-		agw.Lc.BodyBufferSize = 2000
+	if agw.LogConf.BodyBufferSize == 0 {
+		agw.LogConf.BodyBufferSize = 2000
 	}
 
 	return nil
@@ -155,8 +156,8 @@ func (agw *ApiGateway) configEcho() {
 	format := "${time_rfc3339} ${status} ${method} ${latency_human} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${uri} ${id} ${error}\n"
 	e.Use(middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
 		Handler: func(c echo.Context, reqBody []byte, resBody []byte) {
-			lq := int(math.Min(float64(len(reqBody)), float64(agw.Lc.BodyBufferSize)))
-			lp := int(math.Min(float64(len(resBody)), float64(agw.Lc.BodyBufferSize)))
+			lq := int(math.Min(float64(len(reqBody)), float64(agw.LogConf.BodyBufferSize)))
+			lp := int(math.Min(float64(len(resBody)), float64(agw.LogConf.BodyBufferSize)))
 
 			contentType := c.Response().Header().Get(echo.HeaderContentType)
 
