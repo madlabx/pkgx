@@ -23,7 +23,6 @@ type LogConfig struct {
 	Size           int
 	BackNum        int
 	AgeDays        int
-	Formatter      logrus.Formatter
 	BodyBufferSize int
 }
 
@@ -34,7 +33,7 @@ type ApiGateway struct {
 	Lc     *LogConfig
 }
 
-func New(pctx context.Context, lc *LogConfig) (*ApiGateway, error) {
+func New(pctx context.Context, lc *LogConfig, f logrus.Formatter) (*ApiGateway, error) {
 	agw := &ApiGateway{
 		Ctx:  context.WithoutCancel(pctx),
 		Echo: echo.New(),
@@ -42,7 +41,7 @@ func New(pctx context.Context, lc *LogConfig) (*ApiGateway, error) {
 	}
 
 	//if lc == nil, log to log.StandardLogger
-	if err := agw.initAccessLog(); err != nil {
+	if err := agw.initAccessLog(f); err != nil {
 		return nil, err
 	}
 
@@ -58,7 +57,7 @@ func (agw *ApiGateway) Stop() error {
 	return agw.shutdownEcho()
 }
 
-func (agw *ApiGateway) initAccessLog() error {
+func (agw *ApiGateway) initAccessLog(f logrus.Formatter) error {
 	if agw.Lc == nil {
 		agw.Logger = log.StandardLogger()
 		agw.Lc = &LogConfig{
@@ -99,7 +98,12 @@ func (agw *ApiGateway) initAccessLog() error {
 	}
 
 	agw.Logger.SetLevel(level)
-	agw.Logger.SetFormatter(lc.Formatter)
+
+	if f == nil {
+		f = &log.TextFormatter{}
+	}
+	agw.Logger.SetFormatter(f)
+	//lc.Formatter = &log.TextFormatter{QuoteEmptyFields: true}
 
 	if agw.Lc.BodyBufferSize == 0 {
 		agw.Lc.BodyBufferSize = 2000

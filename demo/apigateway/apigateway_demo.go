@@ -12,7 +12,7 @@ import (
 
 func main() {
 	log.New()
-	agw, err := apigateway.New(context.Background(), &apigateway.LogConfig{})
+	agw, err := apigateway.New(context.Background(), &apigateway.LogConfig{}, nil)
 	errors.CheckFatalError(err)
 
 	e := agw.Echo
