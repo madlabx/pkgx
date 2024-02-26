@@ -2,6 +2,8 @@ package errors
 
 import (
 	stderrors "errors"
+
+	pkgerrors "github.com/pkg/errors"
 )
 
 // Is reports whether any error in err's chain matches target.
@@ -33,4 +35,16 @@ func As(err error, target interface{}) bool { return stderrors.As(err, target) }
 // Otherwise, Unwrap returns nil.
 func Unwrap(err error) error {
 	return stderrors.Unwrap(err)
+}
+
+// WithMessage annotates err with a new message.
+// If err is nil, WithMessage returns nil.
+func WithMessage(err error, message string) error {
+	return pkgerrors.WithMessage(err, message)
+}
+
+// WithMessagef annotates err with the format specifier.
+// If err is nil, WithMessagef returns nil.
+func WithMessagef(err error, format string, args ...interface{}) error {
+	return pkgerrors.WithMessagef(err, format, args...)
 }

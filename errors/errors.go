@@ -95,25 +95,25 @@
 package errors
 
 import (
-	emp "emperror.dev/errors"
+	"emperror.dev/errors"
 	"github.com/madlabx/pkgx/log"
-	"github.com/pkg/errors"
+	//"github.com/pkg/errors"
 )
 
-//var (
-//	stackDepth = 1
-//)
-//
-//func SetStackDepth(d int) {
-//	stackDepth = d
-//}
+var (
+	stackDepth = 1
+)
 
-type Sentinel = emp.Sentinel
+func SetStackDepth(d int) {
+	stackDepth = d
+}
+
+type Sentinel = errors.Sentinel
 
 // New returns an error with the supplied message.
 // New also records the stack trace at the point it was called.
 func New(message string) error {
-	return emp.New(message)
+	return errors.New(message)
 }
 
 // Errorf formats according to a format specifier and returns the string
@@ -126,33 +126,21 @@ func Errorf(format string, args ...interface{}) error {
 // WithStack annotates err with a stack trace at the point WithStack was called.
 // If err is nil, WithStack returns nil.
 func WithStack(err error) error {
-	return errors.WithStack(err)
+	return errors.WithStackDepthIf(err, stackDepth)
 }
 
 // Wrap returns an error annotating err with a stack trace
 // at the point Wrap is called, and the supplied message.
 // If err is nil, Wrap returns nil.
 func Wrap(err error, message string) error {
-	return errors.Wrap(err, message)
+	return errors.WithStackDepth(WithMessage(err, message), stackDepth)
 }
 
 // Wrapf returns an error annotating err with a stack trace
 // at the point Wrapf is called, and the format specifier.
 // If err is nil, Wrapf returns nil.
 func Wrapf(err error, format string, args ...interface{}) error {
-	return errors.Wrapf(err, format, args...)
-}
-
-// WithMessage annotates err with a new message.
-// If err is nil, WithMessage returns nil.
-func WithMessage(err error, message string) error {
-	return errors.WithMessage(err, message)
-}
-
-// WithMessagef annotates err with the format specifier.
-// If err is nil, WithMessagef returns nil.
-func WithMessagef(err error, format string, args ...interface{}) error {
-	return errors.WithMessagef(err, format, args...)
+	return errors.WithStackDepth(WithMessagef(err, format, args...), stackDepth)
 }
 
 // Cause returns the underlying cause of the error, if possible.

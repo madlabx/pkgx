@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/madlabx/pkgx/errors"
 
@@ -19,6 +18,7 @@ type JsonResponse struct {
 	Message   *string `json:"Message,omitempty"`
 	Result    any     `json:"Result,omitempty"`
 	RequestId *string `json:"RequestId,omitempty"`
+	err       error
 }
 
 func (e *JsonResponse) ToString() string {
@@ -35,35 +35,26 @@ func (e *JsonResponse) IsNoContent() bool {
 	return e.Code == nil && e.CodeInt == nil && e.Result == nil && e.RequestId == nil
 }
 
-func GetECode(err error) int {
-	if err == nil {
-		return handleGetECodeSuccess()
-	}
-	var e *JsonResponse
-	switch {
-	case errors.As(err, &e):
-		return *e.CodeInt
-	default:
-		return handleErrToECode(err)
-	}
+func (e *JsonResponse) Unwrap() error {
+	return e.err
 }
 
-func WrapperError(err error) error {
+func Wrap(err error) error {
 	if err == nil {
 		return nil
 	}
 	var (
 		ej *JsonResponse
 		eh *echo.HTTPError
-		ep *os.PathError
 	)
 	switch {
 	case errors.As(err, &ej):
 		return ej
 	case errors.As(err, &eh):
-		return MessageResp(eh.Code, handleErrToECode(err), fmt.Sprintf("%v", eh.Message))
-	case errors.As(err, &ep):
-		return ErrorResp(handleErrToHttpStatus(err), handleErrToECode(err), err)
+		return ErrStrResp(eh.Code, handleErrToECode(err), fmt.Sprintf("%v", eh.Message))
+		//TODO 对于PathError是否还需要单独处理，不打印出path
+	//case errors.As(err, &ep):
+	//	ne = ErrorResp(handleErrToHttpStatus(err), handleErrToECode(err), err)
 	default:
 		return ErrorResp(handleErrToHttpStatus(err), handleErrToECode(err), err)
 	}
@@ -96,9 +87,10 @@ func StatusResp(status int) error {
 	}
 }
 
-func MessageResp(status, code int, msg string) error {
+func ErrStrResp(status, code int, msg string) *JsonResponse {
 	codeStr := handleECodeToStr(code)
 	return &JsonResponse{
+		err:     errors.New(msg),
 		Status:  status,
 		CodeInt: &code,
 		Code:    &codeStr,
@@ -106,16 +98,20 @@ func MessageResp(status, code int, msg string) error {
 	}
 }
 
-func ErrorResp(status, code int, err error) error {
-	codeStr := handleECodeToStr(code)
-	errStr := ""
-	var msgPtr *string
+func ErrorResp(status, code int, err error) *JsonResponse {
+
+	var (
+		msgPtr  *string
+		e       *JsonResponse
+		codeStr = handleECodeToStr(code)
+		errStr  = ""
+	)
+
 	if err != nil {
 		errStr = err.Error()
 		msgPtr = &errStr
 	}
 
-	var e *JsonResponse
 	switch {
 	case errors.As(err, &e):
 		e.Status = status
@@ -124,6 +120,7 @@ func ErrorResp(status, code int, err error) error {
 		return e
 	default:
 		return &JsonResponse{
+			err:     errors.WithStack(err),
 			Status:  status,
 			CodeInt: &code,
 			Code:    &codeStr,

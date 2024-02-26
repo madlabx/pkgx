@@ -83,7 +83,7 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 	rsp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, WrapperError(err)
+		return nil, nil, Wrap(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -130,7 +130,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 	rsp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, WrapperError(err)
+		return nil, nil, Wrap(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -142,7 +142,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 		body, err := ioutil.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, MessageResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
 		}
 
 		//log.Errorf("Got not 200 response[%#v], body[%v]", rsp, string(body))
@@ -151,7 +151,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 		err = json.Unmarshal(body, &newStatusError)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, MessageResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse error information: "+string(body))
+			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse error information: "+string(body))
 		}
 		newStatusError.Status = rsp.StatusCode
 
@@ -168,7 +168,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 		body, err := ioutil.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, %v", err.Error())
-			return nil, nil, MessageResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
 		}
 		return rsp, body, err
 	}

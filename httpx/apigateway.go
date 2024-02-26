@@ -34,12 +34,12 @@ type ApiGateway struct {
 	LogFormat logrus.Formatter
 }
 
-func NewGateway(pctx context.Context, lc *LogConfig, f logrus.Formatter) (*ApiGateway, error) {
+func NewApiGateway(pCtx context.Context, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
 	agw := &ApiGateway{
-		Ctx:       context.WithoutCancel(pctx),
+		Ctx:       context.WithoutCancel(pCtx),
 		Echo:      echo.New(),
 		LogConf:   lc,
-		LogFormat: f,
+		LogFormat: logFormat,
 	}
 
 	//if lc == nil, log to log.StandardLogger
