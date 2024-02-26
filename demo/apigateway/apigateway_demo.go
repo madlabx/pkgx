@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/apigateway"
-	"github.com/madlabx/pkgx/errorx"
+	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/httpx"
 	"github.com/madlabx/pkgx/log"
 )
@@ -12,7 +13,7 @@ import (
 func main() {
 	log.New()
 	agw, err := apigateway.New(context.Background(), &apigateway.LogConfig{})
-	errorx.CheckFatalError(err)
+	errors.CheckFatalError(err)
 
 	e := agw.Echo
 

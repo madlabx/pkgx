@@ -1,26 +1,22 @@
 package utils
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/madlabx/pkgx/log"
-	"io"
 	"io/ioutil"
 	"math"
 	"math/rand"
 	"os"
-	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode"
+
+	"github.com/madlabx/pkgx/log"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -142,57 +138,6 @@ func RandomString(size int) string {
 		container += string(str[randomInt])
 	}
 	return container
-}
-
-func ExecShellCmd(cmdStr string, pctx context.Context) error {
-	return ExecShellCmdWithOutput(cmdStr, pctx, os.Stdout)
-}
-
-func ExecShellCmdWithOutput(cmdStr string, pctx context.Context, output io.Writer) error {
-	ctx, _ := context.WithCancel(pctx)
-
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", cmdStr)
-
-	return doExecCmd(cmd, output)
-}
-
-func ExecBinaryCmd(cmdStr string, pctx context.Context) error {
-	ctx, _ := context.WithCancel(pctx)
-	parts := strings.Fields(cmdStr)
-	head := parts[0]
-	parts = parts[1:len(parts)]
-
-	cmd := exec.CommandContext(ctx, head, parts...)
-	return doExecCmd(cmd, os.Stdout)
-}
-
-func doExecCmd(cmd *exec.Cmd, output io.Writer) (err error) {
-	cmd.Stdout = output
-	cmd.Stderr = output
-	cmd.Start()
-
-	if cmd.Process != nil {
-		log.Infof("ShellCmd start with pid[%v], cmd:%s", cmd.Process.Pid, cmd.String())
-	} else {
-		log.Errorf("ShellCmd start failure with pid[nil], cmd:%s", cmd.String())
-	}
-	cmd.Wait()
-
-	if cmd.Process == nil {
-		return errors.New("Failed start for cmd" + cmd.String())
-	}
-
-	if cmd.ProcessState != nil && cmd.Process != nil {
-		ret := cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-		log.Infof("ShellCmd exit with value[%v], pid[%v], cmd:%v", ret, cmd.Process.Pid, cmd.String())
-		if ret != 0 {
-			return errors.New(fmt.Sprintf("Exit with error code:%v", ret))
-		}
-
-	} else {
-		log.Errorf("ShellCmd exit failure with pid[nil], cmd:%s", cmd.String())
-	}
-	return nil
 }
 
 func ReadCsvFile(fileName string, data interface{}, headerRows int) error {

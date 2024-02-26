@@ -24,7 +24,6 @@ package lumberjackx
 import (
 	"compress/gzip"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,6 +33,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/madlabx/pkgx/errors"
 )
 
 const (

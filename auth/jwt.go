@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/log"
 	"github.com/madlabx/pkgx/typex"
 )

@@ -1,8 +1,14 @@
 package chartx
 
 import (
-	"errors"
 	"fmt"
+	"math"
+	"math/rand"
+	"os"
+	"time"
+
+	"github.com/madlabx/pkgx/errors"
+
 	"github.com/fogleman/gg"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
@@ -13,10 +19,6 @@ import (
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
-	"math"
-	"math/rand"
-	"os"
-	"time"
 )
 
 type ChartLine struct {

@@ -3,17 +3,18 @@ package apigateway
 import (
 	"context"
 	"fmt"
+	"math"
+	"os"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/madlabx/pkgx/log"
 	"github.com/madlabx/pkgx/lumberjackx"
 	"github.com/madlabx/pkgx/viperx"
 	"github.com/sirupsen/logrus"
-	"math"
-	"os"
-	"sort"
-	"strings"
-	"time"
 )
 
 type LogConfig struct {

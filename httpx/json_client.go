@@ -2,10 +2,7 @@ package httpx
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
-	"github.com/madlabx/pkgx/log"
-	"github.com/madlabx/pkgx/typex"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +11,11 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/madlabx/pkgx/errors"
+
+	"github.com/madlabx/pkgx/log"
+	"github.com/madlabx/pkgx/typex"
 
 	resty "github.com/go-resty/resty/v2"
 )

@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/labstack/echo"
+	"github.com/madlabx/pkgx/errors"
 )
 
 type EchoAuth struct {

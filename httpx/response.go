@@ -2,12 +2,14 @@ package httpx
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/labstack/echo"
-	"github.com/madlabx/pkgx/utils"
 	"net/http"
 	"os"
+
+	"github.com/madlabx/pkgx/errors"
+
+	"github.com/labstack/echo"
+	"github.com/madlabx/pkgx/utils"
 )
 
 type JsonResponse struct {
