@@ -153,7 +153,8 @@ func (agw *ApiGateway) configEcho() {
 	var (
 		e = agw.Echo
 	)
-	format := "${time_rfc3339} ${status} ${method} ${latency_human} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${uri} ${id} ${error}\n"
+	e.Logger.SetOutput(log.StandardLogger().Out)
+	format := "${time_custom} ${status} ${method} ${latency_human} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${uri} ${id} ${error}\n"
 	e.Use(middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
 		Handler: func(c echo.Context, reqBody []byte, resBody []byte) {
 			lq := int(math.Min(float64(len(reqBody)), float64(agw.LogConf.BodyBufferSize)))
@@ -162,18 +163,16 @@ func (agw *ApiGateway) configEcho() {
 			contentType := c.Response().Header().Get(echo.HeaderContentType)
 
 			if isPrintableTextContent(contentType) || len(resBody) == 0 {
-				log.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:{%v}", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), string(resBody[:lp]))
+				agw.Logger.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:{%v}", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), string(resBody[:lp]))
 			} else {
-				log.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:[Non-printable ContentType:%v]", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), contentType)
+				agw.Logger.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:[Non-printable ContentType:%v]", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), contentType)
 			}
-
-			//accessLogger.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:{%v}", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), string(resBody[:lp]))
 		},
 	}))
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: viperx.GetString("sys.accessFormat", format),
-		//Output: accessLogger.Out,
-		Output: log.StandardLogger().Out,
+		Format:           viperx.GetString("sys.accessFormat", format),
+		CustomTimeFormat: "2006/01/02 15:04:05.000",
+		Output:           agw.Logger.Out,
 	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{

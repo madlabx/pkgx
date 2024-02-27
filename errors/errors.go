@@ -160,6 +160,6 @@ func Cause(err error) error {
 
 func CheckFatalError(err error) {
 	if err != nil {
-		log.Panic(err)
+		log.Panicf("Panic: %+v", WithStack(err))
 	}
 }

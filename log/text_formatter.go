@@ -48,10 +48,6 @@ type TextFormatter struct {
 	// system that already adds timestamps.
 	DisableTimestamp bool
 
-	// Enable logging the full timestamp when a TTY is attached instead of just
-	// the time passed since beginning of execution.
-	FullTimestamp bool
-
 	// TimestampFormat to use for display when a full timestamp is printed
 	TimestampFormat string
 
@@ -166,36 +162,34 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		b = &bytes.Buffer{}
 	}
 
-	//prefixFieldClashes(entry.Data, emptyFieldMap)
-
 	f.Do(func() { f.init(entry) })
 
 	isColored := (f.ForceColors || f.isTerminal) && !f.DisableColors
 
+	levelStr := LevelToString(entry.Level)
 	if isColored {
-		f.printColored(b, entry, keys, f.TimestampFormat)
-	} else {
-		if !f.DisableTimestamp {
-			f.appendMsg(b, "time", entry.Time.Format(f.TimestampFormat))
-		}
-		f.appendMsg(b, "level", LevelToString(entry.Level))
-		if !f.DisableFileLine {
-			fl, _ := getRunTimeInfoString(9)
-			f.appendMsg(b, "filen", fl)
-		}
-		if entry.Message != "" {
-			f.appendMsg(b, "msg", entry.Message)
-		}
-		for _, key := range keys {
-			f.appendKeyValueItf(b, key, entry.Data[key])
-		}
+		levelStr = f.withColored(levelStr, entry)
+	}
+
+	if !f.DisableTimestamp {
+		f.appendMsg(b, "time", entry.Time.Format(f.TimestampFormat))
+	}
+	f.appendMsg(b, "level", levelStr)
+	if !f.DisableFileLine {
+		fl, _ := getRunTimeInfoString(9)
+		f.appendMsg(b, "filen", fl)
+	}
+	if entry.Message != "" {
+		f.appendMsg(b, "msg", entry.Message)
+	}
+	for _, key := range keys {
+		f.appendKeyValueItf(b, key, entry.Data[key])
 	}
 
 	b.WriteByte('\n')
 	return b.Bytes(), nil
 }
-
-func (f *TextFormatter) printColored(b *bytes.Buffer, entry *logrus.Entry, keys []string, timestampFormat string) {
+func (f *TextFormatter) withColored(str string, entry *logrus.Entry) string {
 	var levelColor int
 	switch entry.Level {
 	case logrus.DebugLevel:
@@ -208,29 +202,7 @@ func (f *TextFormatter) printColored(b *bytes.Buffer, entry *logrus.Entry, keys 
 		levelColor = blue
 	}
 
-	levelText := strings.ToUpper(entry.Level.String())
-	if !f.DisableLevelTruncation {
-		levelText = levelText[0:4]
-	}
-
-	fl := " "
-	if !f.DisableFileLine {
-		fl, _ = getRunTimeInfoString(9)
-		fl += " "
-	}
-
-	if f.DisableTimestamp {
-		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m %v%-44s ", levelColor, levelText, fl, entry.Message)
-	} else if !f.FullTimestamp {
-		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%04d] %v%-44s ", levelColor, levelText, int(entry.Time.Sub(baseTimestamp)/time.Second), fl, entry.Message)
-	} else {
-		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %v%-44s ", levelColor, levelText, entry.Time.Format(timestampFormat), fl, entry.Message)
-	}
-	for _, k := range keys {
-		v := entry.Data[k]
-		fmt.Fprintf(b, " \x1b[%dm%s\x1b[0m=", levelColor, k)
-		f.appendValueItf(b, v)
-	}
+	return fmt.Sprintf("\x1b[%dm%s\x1b[0m", levelColor, str)
 }
 
 func (f *TextFormatter) needsQuoting(text string) bool {
