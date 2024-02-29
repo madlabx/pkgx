@@ -33,3 +33,8 @@ func QueryMustParam(c echo.Context, key string) (string, error) {
 
 	return value, err
 }
+
+func QueryOptionalParam(c echo.Context, key string) (string, bool) {
+	value := c.QueryParam(key)
+	return value, len(value) != 0
+}
