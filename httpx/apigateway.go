@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -12,18 +11,18 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/madlabx/pkgx/log"
-	"github.com/madlabx/pkgx/lumberjackx"
 	"github.com/madlabx/pkgx/viperx"
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	DefaultB0dyBufferSize = 2000
+)
+
 type LogConfig struct {
-	Output         string
+	FileConfig log.FileConfig
 	Level          string
-	Size           int
-	BackNum        int
-	AgeDays        int
-	BodyBufferSize int
+	BodyBufferSize int `vx_default:"2000"`
 }
 
 type ApiGateway struct {
@@ -61,53 +60,32 @@ func (agw *ApiGateway) Stop() error {
 
 func (agw *ApiGateway) initAccessLog() error {
 	if agw.LogConf == nil {
+		agw.LogConf = &LogConfig{}
 		agw.Logger = log.StandardLogger()
-		agw.LogConf = &LogConfig{
-			BodyBufferSize: 2000,
-		}
-		return nil
+	} else {
+		agw.Logger = log.NewLogger(agw.Ctx, agw.LogConf.FileConfig)
 	}
-	if agw.LogFormat == nil {
-		agw.LogFormat = &log.TextFormatter{}
-	}
-
-	agw.Logger = log.New()
 
 	lc := agw.LogConf
+
+	// Set level
 	if lc.Level == "" {
 		lc.Level = "info" //by default, apply info
 	}
-
 	level, err := logrus.ParseLevel(lc.Level)
 	if err != nil {
 		return err
 	}
-
-	switch lc.Output {
-	case "stdout":
-		agw.Logger.SetOutput(os.Stdout)
-	case "stderr":
-		agw.Logger.SetOutput(os.Stderr)
-	case "":
-		agw.Logger.SetOutput(os.Stdout)
-	default:
-		agw.Logger.SetOutput(&lumberjackx.Logger{
-			Ctx:        context.WithoutCancel(agw.Ctx),
-			Filename:   lc.Output,
-			MaxSize:    lc.Size,    // megabytes
-			MaxBackups: lc.BackNum, //file number
-			MaxAge:     lc.AgeDays, //days
-			Compress:   true,       // disabled by default
-			LocalTime:  true,
-		})
-	}
-
 	agw.Logger.SetLevel(level)
-	agw.Logger.SetFormatter(agw.LogFormat)
-	//lc.Formatter = &log.TextFormatter{QuoteEmptyFields: true}
 
-	if agw.LogConf.BodyBufferSize == 0 {
-		agw.LogConf.BodyBufferSize = 2000
+	// Set body format
+	if agw.LogFormat == nil {
+		agw.LogFormat = &log.TextFormatter{QuoteEmptyFields: true}
+	}
+	agw.Logger.SetFormatter(agw.LogFormat)
+
+	if lc.BodyBufferSize == 0 {
+		lc.BodyBufferSize = DefaultB0dyBufferSize
 	}
 
 	return nil

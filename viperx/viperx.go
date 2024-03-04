@@ -1,11 +1,12 @@
 package viperx
 
 import (
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 type ViperX struct {
@@ -75,7 +76,7 @@ func Unmarshal(cfg any, opts ...viper.DecoderConfigOption) (err error) {
 	return vx.v.Unmarshal(cfg, opts...)
 }
 
-// BindAllFlags 添加cfg结构体中vxflags标记的Flag，并返回完整的FlagSet
+// BindAllFlags 添加cfg结构体中vx_flag标记的Flag，并返回完整的FlagSet
 // （推荐）若未定义name，name解析为cfg结构体成员名，多级使用"."相连
 // 否则，解析为name
 // 若fs为空，会初始化一个新的

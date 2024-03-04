@@ -13,6 +13,13 @@ import (
 	"github.com/madlabx/pkgx/log"
 )
 
+type TusReq struct {
+	Name       string `hx_place:"query" hx_mandatory:"true" hx_name:"host_name" hx_default:"default_name" hx_range:"alice,bob"`
+	TaskId     int64  `hx_place:"body" hx_mandatory:"false" hx_name:"task_id" hx_default:"7" hx_range:"0-21"`
+	CreateTime int64  `hx_flag:"place:body;mandatory:true;range:32-"`
+	Timeout    int64  `hx_flag:";true;;32-"`
+}
+
 func main() {
 	log.New()
 	log.SetOutput(&lumberjackx.Logger{
@@ -40,6 +47,11 @@ func main() {
 	httpx.RegisterHandle(func() int { return 0 }, nil, nil, nil, nil, nil, nil)
 
 	e.Any("/v1/file_service/health", func(ctx echo.Context) error {
+		req := TusReq{}
+		if err := httpx.BindAndValidate(ctx.Request(), &req); err != nil {
+			log.Info("Failed to bind, error:%v", err)
+			return httpx.SendResp(ctx, httpx.Wrap(err))
+		}
 		log.Info("Request Status")
 		return httpx.SendResp(ctx, httpx.SuccessResp("1110"))
 	})

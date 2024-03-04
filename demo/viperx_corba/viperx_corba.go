@@ -1,12 +1,13 @@
 package main
 
 import (
+	"os"
+
 	"github.com/madlabx/pkgx/log"
 	"github.com/madlabx/pkgx/utils"
 	"github.com/madlabx/pkgx/viperx"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type Config struct {
@@ -40,7 +41,6 @@ func main() {
 	// 例如，我们添加了时间戳和日志级别
 	formatter := &log.TextFormatter{
 		TimestampFormat:  "2006-01-02 15:04:05",
-		FullTimestamp:    true,
 		ForceColors:      true,
 		DisableColors:    false,
 		DisableFileLine:  false,

@@ -1,9 +1,13 @@
 package log
 
 import (
+	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
+	"os"
+
+	"github.com/madlabx/pkgx/lumberjackx"
+	"github.com/sirupsen/logrus"
 )
 
 func New() *logrus.Logger {
@@ -16,6 +20,72 @@ func SetLoggerLevel(lo *logrus.Logger, level string) error {
 	}
 	lo.SetLevel(l)
 	return nil
+}
+
+type FileConfig struct {
+	Filename string `json:"filename" yaml:"filename" vx_default:"stdout"`
+
+	// MaxSize is the maximum size in megabytes of the log file before it gets
+	// rotated. It defaults to 100 megabytes.
+	MaxSize int `json:"maxsize" yaml:"maxsize" vx_default:"10"`
+
+	// MaxAge is the maximum number of days to retain old log files based on the
+	// timestamp encoded in their filename.  Note that a day is defined as 24
+	// hours and may not exactly correspond to calendar days due to daylight
+	// savings, leap seconds, etc. The default is not to remove old log files
+	// based on age.
+	MaxAge int `json:"maxage" yaml:"maxage" vx_default:"7"`
+
+	// MaxBackups is the maximum number of old log files to retain.  The default
+	// is to retain all old log files (though MaxAge may still cause them to get
+	// deleted.)
+	MaxBackups int `json:"maxbackups" yaml:"maxbackups" vx_default:"5"`
+
+	// LocalTime determines if the time used for formatting the timestamps in
+	// backup files is the computer's local time.  The default is to use UTC
+	// time.
+	LocalTime bool `json:"localtime" yaml:"localtime" vx_default:"true"`
+
+	// Compress determines if the rotated log files should be compressed
+	// using gzip. The default is not to perform compression.
+	Compress bool `json:"compress" yaml:"compress" vx_default:"true"`
+}
+
+func NewLogger(pCtx context.Context, cfg FileConfig) *logrus.Logger {
+	lg := New()
+	SetLoggerOutput(lg, pCtx, cfg)
+	return lg
+}
+
+type LoggerIf interface {
+	SetOutput(output io.Writer)
+}
+
+func SetLoggerOutput(lo LoggerIf, pCtx context.Context, cfg FileConfig) LoggerIf{
+	if lo == nil {
+		return nil
+	}
+	switch cfg.Filename {
+	case "stdout":
+		lo.SetOutput(os.Stdout)
+	case "stderr":
+		lo.SetOutput(os.Stderr)
+	case "discard":
+		lo.SetOutput(io.Discard)
+	case "":
+		lo.SetOutput(os.Stdout)
+	default:
+		lo.SetOutput(&lumberjackx.Logger{
+			Ctx:        context.WithoutCancel(pCtx),
+			Filename:   cfg.Filename,
+			MaxSize:    cfg.MaxSize,    // megabytes
+			MaxBackups: cfg.MaxBackups, //file number
+			MaxAge:     cfg.MaxAge,     //days
+			Compress:   cfg.Compress,   // disabled by default
+			LocalTime:  cfg.LocalTime,
+		})
+	}
+	return lo
 }
 
 func SetLoggerFormatter(lo *logrus.Logger, formatter logrus.Formatter) {
