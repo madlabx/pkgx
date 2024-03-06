@@ -95,6 +95,7 @@
 package errors
 
 import (
+	"fmt"
 	"emperror.dev/errors"
 	"github.com/madlabx/pkgx/log"
 	//"github.com/pkg/errors"
@@ -113,14 +114,15 @@ type Sentinel = errors.Sentinel
 // New returns an error with the supplied message.
 // New also records the stack trace at the point it was called.
 func New(message string) error {
-	return errors.New(message)
+	return errors.WithStackDepth(errors.NewPlain(message), 1)
 }
 
 // Errorf formats according to a format specifier and returns the string
 // as a value that satisfies error.
 // Errorf also records the stack trace at the point it was called.
 func Errorf(format string, args ...interface{}) error {
-	return errors.Errorf(format, args...)
+	return errors.WithStackDepth(errors.NewPlain(fmt.Sprintf(format, args...)), 1)
+
 }
 
 // WithStack annotates err with a stack trace at the point WithStack was called.
