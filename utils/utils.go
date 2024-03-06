@@ -212,7 +212,7 @@ func IsDir(path string) (bool, error) {
 	return fileInfo.IsDir(), nil
 }
 
-func CamelToSnake(s string) string {
+func ToSnakeString(s string) string {
 	var res []rune
 	for i, r := range s {
 		if unicode.IsUpper(r) {

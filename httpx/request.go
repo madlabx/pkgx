@@ -56,4 +56,5 @@ func BindAndValidate(c echo.Context, req any) error {
 	//	Timeout    int64  `hx_flag:";true;;32-"`
 	//}
 	//
+	return c.Bind(req)
 }

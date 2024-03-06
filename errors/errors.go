@@ -130,10 +130,10 @@ func WithStack(err error) error {
 }
 
 // Wrap returns an error annotating err with a stack trace
-// at the point Wrap is called, and the supplied message.
+// at the point Wrap is called.
 // If err is nil, Wrap returns nil.
-func Wrap(err error, message string) error {
-	return errors.WithStackDepth(WithMessage(err, message), stackDepth)
+func Wrap(err error) error {
+	return errors.WithStackDepth(err, stackDepth)
 }
 
 // Wrapf returns an error annotating err with a stack trace

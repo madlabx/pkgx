@@ -36,7 +36,7 @@ func main() {
 	log.Printf("f4:%+v\n", err)
 	err1 := errors.New("New2")
 	log.Printf("erro1:%#v", err1)
-	err2 := errors.Wrap(err1, "New2+p")
+	err2 := errors.Wrap(err1)
 	log.Printf("erro2:%#v", err2)
 
 	err3 := errors.Wrapf(err2, "New2+q")

@@ -34,7 +34,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/madlabx/pkgx/errors"
+	"errors"
 )
 
 const (
@@ -120,27 +120,27 @@ type Logger struct {
 	Ctx context.Context
 }
 
-func New(conf Logger) {
-
-	switch lc.Filename {
-	case "stdout":
-		agw.Logger.SetOutput(os.Stdout)
-	case "stderr":
-		agw.Logger.SetOutput(os.Stderr)
-	case "":
-		agw.Logger.SetOutput(os.Stdout)
-	default:
-		agw.Logger.SetOutput(&lumberjackx.Logger{
-			Ctx:        context.WithoutCancel(agw.Ctx),
-			Filename:   lc.Filename,
-			MaxSize:    lc.MaxSize,    // megabytes
-			MaxBackups: lc.MaxBackups, //file number
-			MaxAge:     lc.MaxAge,     //days
-			Compress:   lc.Compress,   // disabled by default
-			LocalTime:  lc.LocalTime,
-		})
-	}
-}
+//func New(conf Logger) {
+//
+//	switch lc.Filename {
+//	case "stdout":
+//		agw.Logger.SetOutput(os.Stdout)
+//	case "stderr":
+//		agw.Logger.SetOutput(os.Stderr)
+//	case "":
+//		agw.Logger.SetOutput(os.Stdout)
+//	default:
+//		agw.Logger.SetOutput(&lumberjackx.Logger{
+//			Ctx:        context.WithoutCancel(agw.Ctx),
+//			Filename:   lc.Filename,
+//			MaxSize:    lc.MaxSize,    // megabytes
+//			MaxBackups: lc.MaxBackups, //file number
+//			MaxAge:     lc.MaxAge,     //days
+//			Compress:   lc.Compress,   // disabled by default
+//			LocalTime:  lc.LocalTime,
+//		})
+//	}
+//}
 
 var (
 	// currentTime exists so it can be mocked out by tests.
