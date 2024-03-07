@@ -13,18 +13,23 @@ import (
 	"github.com/madlabx/pkgx/log"
 )
 
+type Trans struct {
+	Bandwidth uint64  `hx_place:"query" hx_must:"false" hx_query_name:"bandwidth" hx_default:"default_name" hx_range:"1-2"`
+	Loss      float64 `hx_place:"body" hx_must:"false" hx_name:"loss" hx_default:"1.3" hx_range:"1.2-3.4"`
+}
 type TusReq struct {
-	Name       string `hx_place:"query" hx_mandatory:"true" hx_name:"host_name" hx_default:"default_name" hx_range:"alice,bob"`
-	TaskId     int64  `hx_place:"body" hx_mandatory:"false" hx_name:"task_id" hx_default:"7" hx_range:"0-21"`
+	Name       string `hx_place:"query" hx_must:"true" hx_query_name:"host_name" hx_default:"" hx_range:"alice,bob"`
+	TaskId     int64  `hx_place:"body" hx_must:"false" hx_default:"" hx_range:"0-21"`
 	CreateTime int64  `hx_flag:"place:body;mandatory:true;range:32-"`
 	Timeout    int64  `hx_flag:";true;;32-"`
+	Trans      Trans
 }
 
 func main() {
 	log.New()
 	log.SetOutput(&lumberjackx.Logger{
 		Ctx:        context.Background(),
-		Filename:   "./agw.log",
+		Filename:   "stdout",
 		MaxSize:    viperx.GetInt("sys.logMaxSize", 10), // megabytes
 		MaxBackups: viperx.GetInt("sys.logMaxBackups", 5),
 		MaxAge:     viperx.GetInt("sys.logMaxAge", 1), //days
@@ -48,12 +53,12 @@ func main() {
 
 	e.Any("/v1/file_service/health", func(ctx echo.Context) error {
 		req := TusReq{}
-		if err := httpx.BindAndValidate(ctx.Request(), &req); err != nil {
+		if err := httpx.BindAndValidate(ctx, &req); err != nil {
 			log.Info("Failed to bind, error:%v", err)
 			return httpx.SendResp(ctx, httpx.Wrap(err))
 		}
 		log.Info("Request Status")
-		return httpx.SendResp(ctx, httpx.SuccessResp("1110"))
+		return httpx.SendResp(ctx, httpx.SuccessResp(req))
 	})
 
 	log.Errorf("Routes:\n%v", agw.RoutesToString())

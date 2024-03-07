@@ -10,18 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func New() *logrus.Logger {
-	return logrus.New()
-}
-func SetLoggerLevel(lo *logrus.Logger, level string) error {
-	l, err := logrus.ParseLevel(level)
-	if err != nil {
-		return err
-	}
-	lo.SetLevel(l)
-	return nil
-}
-
 type FileConfig struct {
 	Filename string `json:"filename" yaml:"filename" vx_default:"stdout"`
 
@@ -51,6 +39,10 @@ type FileConfig struct {
 	Compress bool `json:"compress" yaml:"compress" vx_default:"true"`
 }
 
+func New() *logrus.Logger {
+	return logrus.New()
+}
+
 func NewLogger(pCtx context.Context, cfg FileConfig) *logrus.Logger {
 	lg := New()
 	SetLoggerOutput(lg, pCtx, cfg)
@@ -61,11 +53,23 @@ type LoggerIf interface {
 	SetOutput(output io.Writer)
 }
 
+func SetLoggerLevel(lo *logrus.Logger, level string) error {
+	l, err := logrus.ParseLevel(level)
+	if err != nil {
+		return err
+	}
+	lo.SetLevel(l)
+	return nil
+}
+
 func SetLoggerOutput(lo LoggerIf, pCtx context.Context, cfg FileConfig) LoggerIf{
 	if lo == nil {
 		return nil
 	}
+
 	switch cfg.Filename {
+	case "main":
+		lo.SetOutput(StandardLogger().Out)
 	case "stdout":
 		lo.SetOutput(os.Stdout)
 	case "stderr":
