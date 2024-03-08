@@ -29,23 +29,23 @@ func (ts *ClientTestSuite) TearDownSuite() {
 }
 
 func (ts *ClientTestSuite) TestInvalidUrl() {
-	require := require.New(ts.T())
+	require2 := require.New(ts.T())
 
 	client, err := NewProxyClient("127.0.0.1", 1000000, true)
-
+	require2.NotNil(err)
 	stats, err := client.GetAndDrop("http://127.0.0.1:1")
-	require.NotNil(err)
-	require.Equal(stats.Error, ERR_CONNTION)
+	require2.NotNil(err)
+	require2.Equal(stats.Error, ERR_CONNTION)
 }
 
 func (ts *ClientTestSuite) TestConnectFail() {
-	require := require.New(ts.T())
+	require2 := require.New(ts.T())
 
 	client, err := NewProxyClient("127.0.0.1", 1, true)
-
+	require2.NotNil(err)
 	stats, err := client.GetAndDrop("http://127.0.0.1:1")
-	require.NotNil(err)
-	require.Equal(stats.Error, ERR_CONNTION)
+	require2.NotNil(err)
+	require2.Equal(stats.Error, ERR_CONNTION)
 }
 
 func (ts *ClientTestSuite) TestReadError() {

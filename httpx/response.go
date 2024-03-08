@@ -8,7 +8,6 @@ import (
 	"github.com/madlabx/pkgx/errors"
 
 	"github.com/labstack/echo"
-	"github.com/madlabx/pkgx/utils"
 )
 
 type JsonResponse struct {
@@ -143,7 +142,7 @@ func SendResp(c echo.Context, resp error) error {
 		}
 
 		if e.RequestId == nil {
-			rid := utils.NewRequestId()
+			rid := handleNewRequestId()
 			e.RequestId = &rid
 		}
 		return c.JSON(e.Status, e)
@@ -152,7 +151,7 @@ func SendResp(c echo.Context, resp error) error {
 			"CodeInt":   handleGetECodeInternalError(),
 			"Code":      handleECodeToStr(handleGetECodeInternalError()),
 			"Message":   e.Error(),
-			"RequestId": utils.NewRequestId(),
+			"RequestId": handleNewRequestId(),
 		})
 	}
 }

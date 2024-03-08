@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 
-	"github.com/madlabx/pkgx/lumberjackx"
-
 	"github.com/madlabx/pkgx/viperx"
 
 	"github.com/labstack/echo"
@@ -14,28 +12,21 @@ import (
 )
 
 type Trans struct {
-	Bandwidth uint64  `hx_place:"query" hx_must:"false" hx_query_name:"bandwidth" hx_default:"default_name" hx_range:"1-2"`
-	Loss      float64 `hx_place:"body" hx_must:"false" hx_name:"loss" hx_default:"1.3" hx_range:"1.2-3.4"`
+	Bandwidth uint64   `hx_place:"query" hx_must:"false" hx_query_name:"bandwidth" hx_default:"default_name" hx_range:"1-2"`
+	Loss      *float64 `hx_place:"body" hx_must:"false" hx_default:"1.4" hx_range:"1.2-3.4"`
+	Loss2     float64  `hx_default:"1.5"`
+	LossStr   string   `hx_default:"de"`
 }
 type TusReq struct {
-	Name       string `hx_place:"query" hx_must:"true" hx_query_name:"host_name" hx_default:"" hx_range:"alice,bob"`
+	Name       string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob"`
 	TaskId     int64  `hx_place:"body" hx_must:"false" hx_default:"" hx_range:"0-21"`
-	CreateTime int64  `hx_flag:"place:body;mandatory:true;range:32-"`
-	Timeout    int64  `hx_flag:";true;;32-"`
-	Trans      Trans
+	CreateTime int64  `hx_tag:"query;create;true;;0-21"`
+	Timeout    int64  `hx_tag:";;true;;0-21"`
+	Trans
 }
 
 func main() {
-	log.New()
-	log.SetOutput(&lumberjackx.Logger{
-		Ctx:        context.Background(),
-		Filename:   "stdout",
-		MaxSize:    viperx.GetInt("sys.logMaxSize", 10), // megabytes
-		MaxBackups: viperx.GetInt("sys.logMaxBackups", 5),
-		MaxAge:     viperx.GetInt("sys.logMaxAge", 1), //days
-		Compress:   true,                              // disabled by default
-		LocalTime:  true,
-	})
+	log.SetLoggerOutput(log.StandardLogger(), context.Background(), log.FileConfig{Filename: "stdout"})
 	agw, err := httpx.NewApiGateway(context.Background(), &httpx.LogConfig{
 		//Output: "access.log",
 	}, nil)
@@ -54,7 +45,7 @@ func main() {
 	e.Any("/v1/file_service/health", func(ctx echo.Context) error {
 		req := TusReq{}
 		if err := httpx.BindAndValidate(ctx, &req); err != nil {
-			log.Info("Failed to bind, error:%v", err)
+			log.Infof("Failed to bind, error:%v", err)
 			return httpx.SendResp(ctx, httpx.Wrap(err))
 		}
 		log.Info("Request Status")
@@ -70,3 +61,58 @@ func main() {
 		log.Error(err)
 	}
 }
+
+//
+//package main
+//
+//import (
+//	"net/http"
+//	"reflect"
+//	"strconv"
+//
+//	"github.com/labstack/echo"
+//)
+//
+//type Trans struct {
+//	Bandwidth uint64
+//	Loss      *float64 `json:"loss" default:"2.4"`
+//}
+//
+//func setDefaultLossValue(next echo.HandlerFunc) echo.HandlerFunc {
+//	return func(c echo.Context) error {
+//		t := new(Trans)
+//		if err := c.Bind(t); err != nil {
+//			return err
+//		}
+//
+//		v := reflect.ValueOf(t).Elem()
+//		field := v.FieldByName("Loss")
+//		tag := v.Type().Field(1).Tag.Get("default")
+//		if field.IsValid() && field.IsNil() {
+//			defaultValue, err := strconv.ParseFloat(tag, 64)
+//			if err != nil {
+//				return err
+//			}
+//			field.Set(reflect.ValueOf(&defaultValue))
+//		}
+//
+//		c.Set("trans", t)
+//		return next(c)
+//	}
+//}
+//
+//func main() {
+//	e := echo.New()
+//
+//	e.Use(setDefaultLossValue)
+//
+//	e.POST("/", func(c echo.Context) error {
+//		t, ok := c.Get("trans").(*Trans)
+//		if !ok {
+//			return echo.NewHTTPError(http.StatusInternalServerError, "Internal Server Error")
+//		}
+//		return c.JSON(http.StatusOK, t)
+//	})
+//
+//	e.Logger.Fatal(e.Start(":8080"))
+//}
