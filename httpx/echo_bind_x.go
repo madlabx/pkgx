@@ -58,7 +58,7 @@ func (b *DefaultBinder) Bind(i interface{}, c echo.Context) (err error) {
 	case strings.HasPrefix(ctype, MIMEApplicationJSON):
 		if err = json.NewDecoder(req.Body).Decode(i); err != nil {
 			var (
-				ute *json.UnsupportedTypeError
+				ute *json.UnmarshalTypeError
 				se  *json.SyntaxError
 			)
 			if errors.As(err, &ute) {

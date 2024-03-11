@@ -355,7 +355,8 @@ func BindAndValidate(c echo.Context, i interface{}) error {
 	v := reflect.ValueOf(i).Elem()
 	t := v.Type()
 
-	if err := c.Bind(i); err != nil && !strings.Contains(err.Error(), "Request body can't be empty") {
+	binder := &DefaultBinder{}
+	if err := binder.Bind(i, c); err != nil && !strings.Contains(err.Error(), "Request body can't be empty") {
 		return err
 	}
 
