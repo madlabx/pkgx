@@ -9,7 +9,7 @@ const (
 	ERR_CONNTION = "Connection Error"
 	ERR_READ     = "Read Content Error"
 	ERR_REQ      = "Request Error"
-	ERR_JSON     = "Encode/Decode json Error"
+	ERR_JSON     = "Encode/Decode jsonx Error"
 )
 
 type Stats struct {

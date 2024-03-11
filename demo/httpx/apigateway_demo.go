@@ -50,10 +50,10 @@ func (pt *Int64) UnmarshalJSON(b []byte) (err error) {
 }
 
 type TusReq struct {
-	Name       *string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob" json:"nm,omitempty"`
+	Name       *string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob" jsonx:"nm,omitempty"`
 	TaskId     int64   `hx_place:"body" hx_must:"false" hx_default:"" hx_range:"0-21"`
 	CreateTime int64   `hx_tag:"query;create;true;;0-21"`
-	Timeout    Int64   `hx_tag:";;true;;0-21" json:"to,omitempty"`
+	Timeout    Int64   `hx_tag:";;true;;0-21" jsonx:"to,omitempty"`
 	Trans
 }
 
@@ -124,7 +124,7 @@ func main() {
 //
 //type Trans struct {
 //	Bandwidth uint64
-//	Loss      *float64 `json:"loss" default:"2.4"`
+//	Loss      *float64 `jsonx:"loss" default:"2.4"`
 //}
 //
 //func setDefaultLossValue(next echo.HandlerFunc) echo.HandlerFunc {

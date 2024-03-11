@@ -2,50 +2,50 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package json
+package jsonx
 
 import (
 	"testing"
 )
 
 type basicLatin2xTag struct {
-	V string `json:"$%-/"`
+	V string `jsonx:"$%-/"`
 }
 
 type basicLatin3xTag struct {
-	V string `json:"0123456789"`
+	V string `jsonx:"0123456789"`
 }
 
 type basicLatin4xTag struct {
-	V string `json:"ABCDEFGHIJKLMO"`
+	V string `jsonx:"ABCDEFGHIJKLMO"`
 }
 
 type basicLatin5xTag struct {
-	V string `json:"PQRSTUVWXYZ_"`
+	V string `jsonx:"PQRSTUVWXYZ_"`
 }
 
 type basicLatin6xTag struct {
-	V string `json:"abcdefghijklmno"`
+	V string `jsonx:"abcdefghijklmno"`
 }
 
 type basicLatin7xTag struct {
-	V string `json:"pqrstuvwxyz"`
+	V string `jsonx:"pqrstuvwxyz"`
 }
 
 type miscPlaneTag struct {
-	V string `json:"色は匂へど"`
+	V string `jsonx:"色は匂へど"`
 }
 
 type percentSlashTag struct {
-	V string `json:"text/html%"` // https://golang.org/issue/2718
+	V string `jsonx:"text/html%"` // https://golang.org/issue/2718
 }
 
 type punctuationTag struct {
-	V string `json:"!#$%&()*+-./:;<=>?@[]^_{|}~ "` // https://golang.org/issue/3546
+	V string `jsonx:"!#$%&()*+-./:;<=>?@[]^_{|}~ "` // https://golang.org/issue/3546
 }
 
 type dashTag struct {
-	V string `json:"-,"`
+	V string `jsonx:"-,"`
 }
 
 type emptyTag struct {
@@ -61,15 +61,15 @@ type badFormatTag struct {
 }
 
 type badCodeTag struct {
-	Z string `json:" !\"#&'()*+,."`
+	Z string `jsonx:" !\"#&'()*+,."`
 }
 
 type spaceTag struct {
-	Q string `json:"With space"`
+	Q string `jsonx:"With space"`
 }
 
 type unicodeTag struct {
-	W string `json:"Ελλάδα"`
+	W string `jsonx:"Ελλάδα"`
 }
 
 var structTagObjectKeyTests = []struct {

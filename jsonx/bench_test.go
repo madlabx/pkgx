@@ -8,7 +8,7 @@
 // We benchmark converting between the JSON form
 // and in-memory data structures.
 
-package json
+package jsonx
 
 import (
 	"bytes"
@@ -26,25 +26,25 @@ import (
 )
 
 type codeResponse struct {
-	Tree     *codeNode `json:"tree"`
-	Username string    `json:"username"`
+	Tree     *codeNode `jsonx:"tree"`
+	Username string    `jsonx:"username"`
 }
 
 type codeNode struct {
-	Name     string      `json:"name"`
-	Kids     []*codeNode `json:"kids"`
-	CLWeight float64     `json:"cl_weight"`
-	Touches  int         `json:"touches"`
-	MinT     int64       `json:"min_t"`
-	MaxT     int64       `json:"max_t"`
-	MeanT    int64       `json:"mean_t"`
+	Name     string      `jsonx:"name"`
+	Kids     []*codeNode `jsonx:"kids"`
+	CLWeight float64     `jsonx:"cl_weight"`
+	Touches  int         `jsonx:"touches"`
+	MinT     int64       `jsonx:"min_t"`
+	MaxT     int64       `jsonx:"max_t"`
+	MeanT    int64       `jsonx:"mean_t"`
 }
 
 var codeJSON []byte
 var codeStruct codeResponse
 
 func codeInit() {
-	f, err := os.Open("testdata/code.json.gz")
+	f, err := os.Open("testdata/code.jsonx.gz")
 	if err != nil {
 		panic(err)
 	}
@@ -61,11 +61,11 @@ func codeInit() {
 	codeJSON = data
 
 	if err := Unmarshal(codeJSON, &codeStruct); err != nil {
-		panic("unmarshal code.json: " + err.Error())
+		panic("unmarshal code.jsonx: " + err.Error())
 	}
 
 	if data, err = Marshal(&codeStruct); err != nil {
-		panic("marshal code.json: " + err.Error())
+		panic("marshal code.jsonx: " + err.Error())
 	}
 
 	if !bytes.Equal(data, codeJSON) {
@@ -78,7 +78,7 @@ func codeInit() {
 				break
 			}
 		}
-		panic("re-marshal code.json: different result")
+		panic("re-marshal code.jsonx: different result")
 	}
 }
 
@@ -401,7 +401,7 @@ func BenchmarkIssue10335(b *testing.B) {
 func BenchmarkIssue34127(b *testing.B) {
 	b.ReportAllocs()
 	j := struct {
-		Bar string `json:"bar,string"`
+		Bar string `jsonx:"bar,string"`
 	}{
 		Bar: `foobar`,
 	}

@@ -5,7 +5,7 @@
 // Represents JSON data structure using native Go types: booleans, floats,
 // strings, arrays, and maps.
 
-package json
+package jsonx
 
 import (
 	"encoding"
@@ -72,7 +72,7 @@ import (
 // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
 // reuses the existing map, keeping existing entries. Unmarshal then stores
 // key-value pairs from the JSON object into the map. The map's key type must
-// either be any string type, an integer, implement json.Unmarshaler, or
+// either be any string type, an integer, implement jsonx.Unmarshaler, or
 // implement encoding.TextUnmarshaler.
 //
 // If the JSON-encoded data contain a syntax error, Unmarshal returns a SyntaxError.
@@ -132,9 +132,9 @@ type UnmarshalTypeError struct {
 
 func (e *UnmarshalTypeError) Error() string {
 	if e.Struct != "" || e.Field != "" {
-		return "json: cannot unmarshal " + e.Value + " into Go struct field " + e.Struct + "." + e.Field + " of type " + e.Type.String()
+		return "jsonx: cannot unmarshal " + e.Value + " into Go struct field " + e.Struct + "." + e.Field + " of type " + e.Type.String()
 	}
-	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
+	return "jsonx: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
 // An UnmarshalFieldError describes a JSON object key that
@@ -148,7 +148,7 @@ type UnmarshalFieldError struct {
 }
 
 func (e *UnmarshalFieldError) Error() string {
-	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
+	return "jsonx: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
 }
 
 // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
@@ -159,13 +159,13 @@ type InvalidUnmarshalError struct {
 
 func (e *InvalidUnmarshalError) Error() string {
 	if e.Type == nil {
-		return "json: Unmarshal(nil)"
+		return "jsonx: Unmarshal(nil)"
 	}
 
 	if e.Type.Kind() != reflect.Pointer {
-		return "json: Unmarshal(non-pointer " + e.Type.String() + ")"
+		return "jsonx: Unmarshal(non-pointer " + e.Type.String() + ")"
 	}
-	return "json: Unmarshal(nil " + e.Type.String() + ")"
+	return "jsonx: Unmarshal(nil " + e.Type.String() + ")"
 }
 
 func (d *decodeState) unmarshal(v any) error {
@@ -706,7 +706,7 @@ func (d *decodeState) object(v reflect.Value) error {
 							//
 							// See https://golang.org/issue/21357
 							if !subv.CanSet() {
-								d.saveError(fmt.Errorf("json: cannot set embedded pointer to unexported struct: %v", subv.Type().Elem()))
+								d.saveError(fmt.Errorf("jsonx: cannot set embedded pointer to unexported struct: %v", subv.Type().Elem()))
 								// Invalidate subv to ensure d.value(subv) skips over
 								// the JSON value without assigning it to subv.
 								subv = reflect.Value{}
@@ -725,7 +725,7 @@ func (d *decodeState) object(v reflect.Value) error {
 				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
 				d.errorContext.Struct = t
 			} else if d.disallowUnknownFields {
-				d.saveError(fmt.Errorf("json: unknown field %q", key))
+				d.saveError(fmt.Errorf("jsonx: unknown field %q", key))
 			}
 		}
 
@@ -749,7 +749,7 @@ func (d *decodeState) object(v reflect.Value) error {
 					return err
 				}
 			default:
-				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into %v", subv.Type()))
+				d.saveError(fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal unquoted value into %v", subv.Type()))
 			}
 		} else {
 			if err := d.value(subv); err != nil {
@@ -790,7 +790,7 @@ func (d *decodeState) object(v reflect.Value) error {
 					}
 					kv = reflect.ValueOf(n).Convert(kt)
 				default:
-					panic("json: Unexpected key type") // should never occur
+					panic("jsonx: Unexpected key type") // should never occur
 				}
 			}
 			if kv.IsValid() {
@@ -843,7 +843,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	// Check for unmarshaler.
 	if len(item) == 0 {
 		//Empty string given
-		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+		d.saveError(fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 		return nil
 	}
 	isNull := item[0] == 'n' // null
@@ -854,7 +854,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	if ut != nil {
 		if item[0] != '"' {
 			if fromQuoted {
-				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+				d.saveError(fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 				return nil
 			}
 			val := "number"
@@ -870,7 +870,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		s, ok := unquoteBytes(item)
 		if !ok {
 			if fromQuoted {
-				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
+				return fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
 			panic(phasePanicMsg)
 		}
@@ -884,7 +884,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		// The main parser checks that only true and false can reach here,
 		// but if this was a quoted string input, it could be anything.
 		if fromQuoted && string(item) != "null" {
-			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+			d.saveError(fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			break
 		}
 		switch v.Kind() {
@@ -897,13 +897,13 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		// The main parser checks that only true and false can reach here,
 		// but if this was a quoted string input, it could be anything.
 		if fromQuoted && string(item) != "true" && string(item) != "false" {
-			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+			d.saveError(fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			break
 		}
 		switch v.Kind() {
 		default:
 			if fromQuoted {
-				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+				d.saveError(fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			} else {
 				d.saveError(&UnmarshalTypeError{Value: "bool", Type: v.Type(), Offset: int64(d.readIndex())})
 			}
@@ -921,7 +921,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		s, ok := unquoteBytes(item)
 		if !ok {
 			if fromQuoted {
-				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
+				return fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
 			panic(phasePanicMsg)
 		}
@@ -942,7 +942,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			v.SetBytes(b[:n])
 		case reflect.String:
 			if v.Type() == numberType && !isValidNumber(string(s)) {
-				return fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item)
+				return fmt.Errorf("jsonx: invalid number literal, trying to unmarshal %q into Number", item)
 			}
 			v.SetString(string(s))
 		case reflect.Interface:
@@ -956,7 +956,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	default: // number
 		if c != '-' && (c < '0' || c > '9') {
 			if fromQuoted {
-				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
+				return fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
 			panic(phasePanicMsg)
 		}
@@ -970,7 +970,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 				break
 			}
 			if fromQuoted {
-				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
+				return fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
 			d.saveError(&UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())})
 		case reflect.Interface:

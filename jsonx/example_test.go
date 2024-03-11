@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package json_test
+package jsonx_test
 
 import (
 	"bytes"
@@ -104,20 +104,20 @@ func ExampleDecoder_Token() {
 		fmt.Printf("\n")
 	}
 	// Output:
-	// json.Delim: { (more)
+	// jsonx.Delim: { (more)
 	// string: Message (more)
 	// string: Hello (more)
 	// string: Array (more)
-	// json.Delim: [ (more)
+	// jsonx.Delim: [ (more)
 	// float64: 1 (more)
 	// float64: 2 (more)
 	// float64: 3
-	// json.Delim: ] (more)
+	// jsonx.Delim: ] (more)
 	// string: Null (more)
 	// <nil>: <nil> (more)
 	// string: Number (more)
 	// float64: 1.234
-	// json.Delim: }
+	// jsonx.Delim: }
 }
 
 // This example uses a Decoder to decode a streaming array of JSON objects.
@@ -163,13 +163,13 @@ func ExampleDecoder_Decode_stream() {
 	fmt.Printf("%T: %v\n", t, t)
 
 	// Output:
-	// json.Delim: [
+	// jsonx.Delim: [
 	// Ed: Knock knock.
 	// Sam: Who's there?
 	// Ed: Go fmt.
 	// Sam: Go fmt who?
 	// Ed: Go fmt yourself!
-	// json.Delim: ]
+	// jsonx.Delim: ]
 }
 
 // This example uses RawMessage to delay parsing part of a JSON message.
@@ -223,8 +223,8 @@ func ExampleRawMessage_marshal() {
 	h := json.RawMessage(`{"precomputed": true}`)
 
 	c := struct {
-		Header *json.RawMessage `json:"header"`
-		Body   string           `json:"body"`
+		Header *json.RawMessage `jsonx:"header"`
+		Body   string           `jsonx:"body"`
 	}{Header: &h, Body: "Hello Gophers!"}
 
 	b, err := json.MarshalIndent(&c, "", "\t")

@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/madlabx/pkgx/viperx"
 	"github.com/spf13/pflag"
-	"os"
 )
 
 var cfgFile string
@@ -44,7 +45,7 @@ func main() {
 
 	pflag.Parse()
 
-	if err := viperx.ParseConfig(&viperxConif, "DEMO", "../conf/viperx.json"); err != nil {
+	if err := viperx.ParseConfig(&viperxConif, "DEMO", "../conf/viperx.jsonx"); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

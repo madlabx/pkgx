@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package json
+package jsonx
 
 import (
 	"bytes"
@@ -23,11 +23,11 @@ import (
 type T struct {
 	X string
 	Y int
-	Z int `json:"-"`
+	Z int `jsonx:"-"`
 }
 
 type U struct {
-	Alphabet string `json:"alpha"`
+	Alphabet string `jsonx:"alpha"`
 }
 
 type V struct {
@@ -166,8 +166,8 @@ type Top struct {
 	Level0 int
 	Embed0
 	*Embed0a
-	*Embed0b `json:"e,omitempty"` // treated as named
-	Embed0c  `json:"-"`           // ignored
+	*Embed0b `jsonx:"e,omitempty"` // treated as named
+	Embed0c  `jsonx:"-"`           // ignored
 	Loop
 	Embed0p // has Point with X, Y, used
 	Embed0q // has Point with Z, used
@@ -175,19 +175,19 @@ type Top struct {
 }
 
 type Embed0 struct {
-	Level1a int // overridden by Embed0a's Level1a with json tag
+	Level1a int // overridden by Embed0a's Level1a with jsonx tag
 	Level1b int // used because Embed0a's Level1b is renamed
 	Level1c int // used because Embed0a's Level1c is ignored
 	Level1d int // annihilated by Embed0a's Level1d
-	Level1e int `json:"x"` // annihilated by Embed0a.Level1e
+	Level1e int `jsonx:"x"` // annihilated by Embed0a.Level1e
 }
 
 type Embed0a struct {
-	Level1a int `json:"Level1a,omitempty"`
-	Level1b int `json:"LEVEL1B,omitempty"`
-	Level1c int `json:"-"`
+	Level1a int `jsonx:"Level1a,omitempty"`
+	Level1b int `jsonx:"LEVEL1B,omitempty"`
+	Level1c int `jsonx:"-"`
 	Level1d int // annihilated by Embed0's Level1d
-	Level1f int `json:"x"` // annihilated by Embed0's Level1e
+	Level1f int `jsonx:"x"` // annihilated by Embed0's Level1e
 }
 
 type Embed0b Embed0
@@ -207,8 +207,8 @@ type embed struct {
 }
 
 type Loop struct {
-	Loop1 int `json:",omitempty"`
-	Loop2 int `json:",omitempty"`
+	Loop1 int `jsonx:",omitempty"`
+	Loop2 int `jsonx:",omitempty"`
 	*Loop
 }
 
@@ -257,8 +257,8 @@ type S13 struct {
 
 type Ambig struct {
 	// Given "hello", the first match should win.
-	First  int `json:"HELLO"`
-	Second int `json:"Hello"`
+	First  int `jsonx:"HELLO"`
+	Second int `jsonx:"Hello"`
 }
 
 type XYZ struct {
@@ -384,7 +384,7 @@ func (b *intWithPtrMarshalText) UnmarshalText(data []byte) error {
 }
 
 type mapStringToStringData struct {
-	Data map[string]string `json:"data"`
+	Data map[string]string `jsonx:"data"`
 }
 
 type unmarshalTest struct {
@@ -398,7 +398,7 @@ type unmarshalTest struct {
 }
 
 type B struct {
-	B bool `json:",string"`
+	B bool `jsonx:",string"`
 }
 
 type DoublePtr struct {
@@ -424,7 +424,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
 	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}}, {in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
-	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
+	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("jsonx: unknown field \"x\""), disallowUnknownFields: true},
 	{in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(SS("")), 0, "W", "S"}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
@@ -440,13 +440,13 @@ var unmarshalTests = []unmarshalTest{
 
 	// Z has a "-" tag.
 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
-	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), err: fmt.Errorf("json: unknown field \"Z\""), disallowUnknownFields: true},
+	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), err: fmt.Errorf("jsonx: unknown field \"Z\""), disallowUnknownFields: true},
 
 	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), out: U{Alphabet: "abc"}},
-	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
+	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("jsonx: unknown field \"alphabet\""), disallowUnknownFields: true},
 	{in: `{"alpha": "abc"}`, ptr: new(U), out: U{Alphabet: "abc"}},
 	{in: `{"alphabet": "xyz"}`, ptr: new(U), out: U{}},
-	{in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
+	{in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("jsonx: unknown field \"alphabet\""), disallowUnknownFields: true},
 
 	// syntax errors
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
@@ -647,7 +647,7 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:                    `{"X": 1,"Y":2}`,
 		ptr:                   new(S5),
-		err:                   fmt.Errorf("json: unknown field \"X\""),
+		err:                   fmt.Errorf("jsonx: unknown field \"X\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -658,7 +658,7 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:                    `{"X": 1,"Y":2}`,
 		ptr:                   new(S10),
-		err:                   fmt.Errorf("json: unknown field \"X\""),
+		err:                   fmt.Errorf("jsonx: unknown field \"X\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -840,12 +840,12 @@ var unmarshalTests = []unmarshalTest{
 	// invalid inputs in wrongStringTests below.
 	{in: `{"B":"true"}`, ptr: new(B), out: B{true}, golden: true},
 	{in: `{"B":"false"}`, ptr: new(B), out: B{false}, golden: true},
-	{in: `{"B": "maybe"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "maybe" into bool`)},
-	{in: `{"B": "tru"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "tru" into bool`)},
-	{in: `{"B": "False"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "False" into bool`)},
+	{in: `{"B": "maybe"}`, ptr: new(B), err: errors.New(`jsonx: invalid use of ,string struct tag, trying to unmarshal "maybe" into bool`)},
+	{in: `{"B": "tru"}`, ptr: new(B), err: errors.New(`jsonx: invalid use of ,string struct tag, trying to unmarshal "tru" into bool`)},
+	{in: `{"B": "False"}`, ptr: new(B), err: errors.New(`jsonx: invalid use of ,string struct tag, trying to unmarshal "False" into bool`)},
 	{in: `{"B": "null"}`, ptr: new(B), out: B{false}},
-	{in: `{"B": "nul"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "nul" into bool`)},
-	{in: `{"B": [2, 3]}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal unquoted value into bool`)},
+	{in: `{"B": "nul"}`, ptr: new(B), err: errors.New(`jsonx: invalid use of ,string struct tag, trying to unmarshal "nul" into bool`)},
+	{in: `{"B": [2, 3]}`, ptr: new(B), err: errors.New(`jsonx: invalid use of ,string struct tag, trying to unmarshal unquoted value into bool`)},
 
 	// additional tests for disallowUnknownFields
 	{
@@ -872,7 +872,7 @@ var unmarshalTests = []unmarshalTest{
 			"extra": true
 		}`,
 		ptr:                   new(Top),
-		err:                   fmt.Errorf("json: unknown field \"extra\""),
+		err:                   fmt.Errorf("jsonx: unknown field \"extra\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -899,7 +899,7 @@ var unmarshalTests = []unmarshalTest{
 			"Q": 18
 		}`,
 		ptr:                   new(Top),
-		err:                   fmt.Errorf("json: unknown field \"extra\""),
+		err:                   fmt.Errorf("jsonx: unknown field \"extra\""),
 		disallowUnknownFields: true,
 	},
 	// issue 26444
@@ -961,24 +961,24 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `"invalid"`,
 		ptr: new(Number),
-		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+		err: fmt.Errorf("jsonx: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
 	},
 	{
 		in:  `{"A":"invalid"}`,
 		ptr: new(struct{ A Number }),
-		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+		err: fmt.Errorf("jsonx: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
 	},
 	{
 		in: `{"A":"invalid"}`,
 		ptr: new(struct {
-			A Number `json:",string"`
+			A Number `jsonx:",string"`
 		}),
-		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into json.Number", `invalid`),
+		err: fmt.Errorf("jsonx: invalid use of ,string struct tag, trying to unmarshal %q into jsonx.Number", `invalid`),
 	},
 	{
 		in:  `{"A":"invalid"}`,
 		ptr: new(map[string]Number),
-		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+		err: fmt.Errorf("jsonx: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
 	},
 }
 
@@ -1282,7 +1282,7 @@ func TestEscape(t *testing.T) {
 
 // WrongString is a struct that's misusing the ,string modifier.
 type WrongString struct {
-	Message string `json:"result,string"`
+	Message string `jsonx:"result,string"`
 }
 
 type wrongStringTest struct {
@@ -1290,12 +1290,12 @@ type wrongStringTest struct {
 }
 
 var wrongStringTests = []wrongStringTest{
-	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
-	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
-	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
-	{`{"result":123}`, `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
-	{`{"result":"\""}`, `json: invalid use of ,string struct tag, trying to unmarshal "\"" into string`},
-	{`{"result":"\"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "\"foo" into string`},
+	{`{"result":"x"}`, `jsonx: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
+	{`{"result":"foo"}`, `jsonx: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
+	{`{"result":"123"}`, `jsonx: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
+	{`{"result":123}`, `jsonx: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
+	{`{"result":"\""}`, `jsonx: invalid use of ,string struct tag, trying to unmarshal "\"" into string`},
+	{`{"result":"\"foo"}`, `jsonx: invalid use of ,string struct tag, trying to unmarshal "\"foo" into string`},
 }
 
 // If people misuse the ,string modifier, the error message should be
@@ -1335,11 +1335,11 @@ type All struct {
 	Float32 float32
 	Float64 float64
 
-	Foo  string `json:"bar"`
-	Foo2 string `json:"bar2,dummyopt"`
+	Foo  string `jsonx:"bar"`
+	Foo2 string `jsonx:"bar2,dummyopt"`
 
-	IntStr     int64   `json:",string"`
-	UintptrStr uintptr `json:",string"`
+	IntStr     int64   `jsonx:",string"`
+	UintptrStr uintptr `jsonx:",string"`
 
 	PBool    *bool
 	PInt     *int
@@ -1667,8 +1667,8 @@ func TestRefUnmarshal(t *testing.T) {
 // Issue 3450
 func TestEmptyString(t *testing.T) {
 	type T2 struct {
-		Number1 int `json:",string"`
-		Number2 int `json:",string"`
+		Number1 int `jsonx:",string"`
+		Number2 int `jsonx:",string"`
 	}
 	data := `{"Number1":"1", "Number2":""}`
 	dec := NewDecoder(strings.NewReader(data))
@@ -1686,9 +1686,9 @@ func TestEmptyString(t *testing.T) {
 // It should also not be an error (issue 2540, issue 8587).
 func TestNullString(t *testing.T) {
 	type T struct {
-		A int  `json:",string"`
-		B int  `json:",string"`
-		C *int `json:",string"`
+		A int  `jsonx:",string"`
+		B int  `jsonx:",string"`
+		C *int `jsonx:",string"`
 	}
 	data := []byte(`{"A": "1", "B": null, "C": null}`)
 	var s T
@@ -2035,10 +2035,10 @@ func TestUnmarshalSyntax(t *testing.T) {
 // Issue 4660
 type unexportedFields struct {
 	Name string
-	m    map[string]any `json:"-"`
-	m2   map[string]any `json:"abcd"`
+	m    map[string]any `jsonx:"-"`
+	m2   map[string]any `jsonx:"abcd"`
 
-	s []int `json:"-"`
+	s []int `jsonx:"-"`
 }
 
 func TestUnmarshalUnexported(t *testing.T) {
@@ -2153,9 +2153,9 @@ var invalidUnmarshalTests = []struct {
 	v    any
 	want string
 }{
-	{nil, "json: Unmarshal(nil)"},
-	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
-	{(*int)(nil), "json: Unmarshal(nil *int)"},
+	{nil, "jsonx: Unmarshal(nil)"},
+	{struct{}{}, "jsonx: Unmarshal(non-pointer struct {})"},
+	{(*int)(nil), "jsonx: Unmarshal(nil *int)"},
 }
 
 func TestInvalidUnmarshal(t *testing.T) {
@@ -2176,10 +2176,10 @@ var invalidUnmarshalTextTests = []struct {
 	v    any
 	want string
 }{
-	{nil, "json: Unmarshal(nil)"},
-	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
-	{(*int)(nil), "json: Unmarshal(nil *int)"},
-	{new(net.IP), "json: cannot unmarshal number into Go value of type *net.IP"},
+	{nil, "jsonx: Unmarshal(nil)"},
+	{struct{}{}, "jsonx: Unmarshal(non-pointer struct {})"},
+	{(*int)(nil), "jsonx: Unmarshal(nil *int)"},
+	{new(net.IP), "jsonx: cannot unmarshal number into Go value of type *net.IP"},
 }
 
 func TestInvalidUnmarshalText(t *testing.T) {
@@ -2201,12 +2201,12 @@ func TestInvalidUnmarshalText(t *testing.T) {
 func TestInvalidStringOption(t *testing.T) {
 	num := 0
 	item := struct {
-		T time.Time         `json:",string"`
-		M map[string]string `json:",string"`
-		S []string          `json:",string"`
-		A [1]string         `json:",string"`
-		I any               `json:",string"`
-		P *int              `json:",string"`
+		T time.Time         `jsonx:",string"`
+		M map[string]string `jsonx:",string"`
+		S []string          `jsonx:",string"`
+		A [1]string         `jsonx:",string"`
+		I any               `jsonx:",string"`
+		P *int              `jsonx:",string"`
 	}{M: make(map[string]string), S: make([]string, 0), I: num, P: &num}
 
 	data, err := Marshal(item)
@@ -2235,7 +2235,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		embed1 struct{ Q int }
 		embed2 struct{ Q int }
 		embed3 struct {
-			Q int64 `json:",string"`
+			Q int64 `jsonx:",string"`
 		}
 		S1 struct {
 			*embed1
@@ -2258,19 +2258,19 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 			R int
 		}
 		S6 struct {
-			embed1 `json:"embed1"`
+			embed1 `jsonx:"embed1"`
 		}
 		S7 struct {
-			embed1 `json:"embed1"`
+			embed1 `jsonx:"embed1"`
 			embed2
 		}
 		S8 struct {
-			embed1 `json:"embed1"`
-			embed2 `json:"embed2"`
+			embed1 `jsonx:"embed1"`
+			embed2 `jsonx:"embed2"`
 			Q      int
 		}
 		S9 struct {
-			unexportedWithMethods `json:"embed"`
+			unexportedWithMethods `jsonx:"embed"`
 		}
 	)
 
@@ -2284,7 +2284,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		in:  `{"R":2,"Q":1}`,
 		ptr: new(S1),
 		out: &S1{R: 2},
-		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed1"),
+		err: fmt.Errorf("jsonx: cannot set embedded pointer to unexported struct: jsonx.embed1"),
 	}, {
 		// The top level Q field takes precedence.
 		in:  `{"Q":1}`,
@@ -2306,7 +2306,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		in:  `{"R":2,"Q":1}`,
 		ptr: new(S5),
 		out: &S5{R: 2},
-		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed3"),
+		err: fmt.Errorf("jsonx: cannot set embedded pointer to unexported struct: jsonx.embed3"),
 	}, {
 		// Issue 24152, ensure decodeState.indirect does not panic.
 		in:  `{"embed1": {"Q": 1}}`,
@@ -2444,7 +2444,7 @@ func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
 
 	// See golang.org/issues/38126.
 	type T struct {
-		F1 string `json:"F1,string"`
+		F1 string `jsonx:"F1,string"`
 	}
 	t1 := T{"aaa\tbbb"}
 
@@ -2530,7 +2530,7 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 			name: "typed named field",
 			newValue: func() any {
 				v := struct {
-					A any `json:"a"`
+					A any `jsonx:"a"`
 				}{}
 				return &v
 			},
@@ -2539,7 +2539,7 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 			name: "typed missing field",
 			newValue: func() any {
 				v := struct {
-					B any `json:"b"`
+					B any `jsonx:"b"`
 				}{}
 				return &v
 			},

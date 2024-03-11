@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package json
+package jsonx
 
 import (
 	"bytes"
@@ -143,8 +143,8 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 	var c C
 	var ct CText
 	var tagStruct struct {
-		Valid   int `json:"<>&#! "`
-		Invalid int `json:"\\"`
+		Valid   int `jsonx:"<>&#! "`
+		Invalid int `jsonx:"\\"`
 	}
 
 	// This case is particularly interesting, as we force the encoder to
@@ -157,7 +157,7 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 
 	// https://golang.org/issue/34154
 	stringOption := struct {
-		Bar string `json:"bar,string"`
+		Bar string `jsonx:"bar,string"`
 	}{`<html>foobar</html>`}
 
 	for _, tt := range []struct {

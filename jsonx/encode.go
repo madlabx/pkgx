@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package json implements encoding and decoding of JSON as defined in
+// Package jsonx implements encoding and decoding of JSON as defined in
 // RFC 7159. The mapping between JSON and Go values is described
 // in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
 // https://golang.org/doc/articles/json_and_go.html
-package json
+package jsonx
 
 import (
 	"bytes"
@@ -63,7 +63,7 @@ import (
 // reasons given below.
 //
 // The encoding of each struct field can be customized by the format string
-// stored under the "json" key in the struct field's tag.
+// stored under the "jsonx" key in the struct field's tag.
 // The format string gives the name of the field, possibly followed by a
 // comma-separated list of options. The name may be empty in order to
 // specify options without overriding the default field name.
@@ -79,30 +79,30 @@ import (
 // Examples of struct field tags and their meanings:
 //
 //	// Field appears in JSON as key "myName".
-//	Field int `json:"myName"`
+//	Field int `jsonx:"myName"`
 //
 //	// Field appears in JSON as key "myName" and
 //	// the field is omitted from the object if its value is empty,
 //	// as defined above.
-//	Field int `json:"myName,omitempty"`
+//	Field int `jsonx:"myName,omitempty"`
 //
 //	// Field appears in JSON as key "Field" (the default), but
 //	// the field is skipped if empty.
 //	// Note the leading comma.
-//	Field int `json:",omitempty"`
+//	Field int `jsonx:",omitempty"`
 //
 //	// Field is ignored by this package.
-//	Field int `json:"-"`
+//	Field int `jsonx:"-"`
 //
 //	// Field appears in JSON as key "-".
-//	Field int `json:"-,"`
+//	Field int `jsonx:"-,"`
 //
 // The "string" option signals that a field is stored as JSON inside a
 // JSON-encoded string. It applies only to fields of string, floating point,
 // integer, or boolean types. This extra level of encoding is sometimes used
 // when communicating with JavaScript programs:
 //
-//	Int64String int64 `json:",string"`
+//	Int64String int64 `jsonx:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
 // only Unicode letters, digits, and ASCII punctuation except quotation
@@ -197,7 +197,7 @@ type UnsupportedTypeError struct {
 }
 
 func (e *UnsupportedTypeError) Error() string {
-	return "json: unsupported type: " + e.Type.String()
+	return "jsonx: unsupported type: " + e.Type.String()
 }
 
 // An UnsupportedValueError is returned by Marshal when attempting
@@ -208,7 +208,7 @@ type UnsupportedValueError struct {
 }
 
 func (e *UnsupportedValueError) Error() string {
-	return "json: unsupported value: " + e.Str
+	return "jsonx: unsupported value: " + e.Str
 }
 
 // Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
@@ -222,7 +222,7 @@ type InvalidUTF8Error struct {
 }
 
 func (e *InvalidUTF8Error) Error() string {
-	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
+	return "jsonx: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
 // A MarshalerError represents an error from calling a MarshalJSON or MarshalText method.
@@ -237,7 +237,7 @@ func (e *MarshalerError) Error() string {
 	if srcFunc == "" {
 		srcFunc = "MarshalJSON"
 	}
-	return "json: error calling " + srcFunc +
+	return "jsonx: error calling " + srcFunc +
 		" for type " + e.Type.String() +
 		": " + e.Err.Error()
 }
@@ -575,7 +575,7 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 			numStr = "0" // Number's zero-val
 		}
 		if !isValidNumber(numStr) {
-			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
+			e.error(fmt.Errorf("jsonx: invalid number literal %q", numStr))
 		}
 		b := e.AvailableBuffer()
 		b = mayAppendQuote(b, opts.quoted)
@@ -745,7 +745,7 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		sv[i].k = mi.Key()
 		sv[i].v = mi.Value()
 		if err := sv[i].resolve(); err != nil {
-			e.error(fmt.Errorf("json: encoding error for type %q: %q", v.Type().String(), err.Error()))
+			e.error(fmt.Errorf("jsonx: encoding error for type %q: %q", v.Type().String(), err.Error()))
 		}
 	}
 	sort.Slice(sv, func(i, j int) bool { return sv[i].ks < sv[j].ks })
@@ -1112,7 +1112,7 @@ func typeFields(t reflect.Type) structFields {
 					// Ignore unexported non-embedded fields.
 					continue
 				}
-				tag := sf.Tag.Get("json")
+				tag := sf.Tag.Get("jsonx")
 				if tag == "-" {
 					continue
 				}
@@ -1187,7 +1187,7 @@ func typeFields(t reflect.Type) structFields {
 	sort.Slice(fields, func(i, j int) bool {
 		x := fields
 		// sort field by name, breaking ties with depth, then
-		// breaking ties with "name came from json tag", then
+		// breaking ties with "name came from jsonx tag", then
 		// breaking ties with index sequence.
 		if x[i].name != x[j].name {
 			return x[i].name < x[j].name

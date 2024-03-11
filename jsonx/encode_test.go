@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package json
+package jsonx
 
 import (
 	"bytes"
@@ -18,30 +18,30 @@ import (
 )
 
 type Optionals struct {
-	Sr string `json:"sr"`
-	So string `json:"so,omitempty"`
-	Sw string `json:"-"`
+	Sr string `jsonx:"sr"`
+	So string `jsonx:"so,omitempty"`
+	Sw string `jsonx:"-"`
 
-	Ir int `json:"omitempty"` // actually named omitempty, not an option
-	Io int `json:"io,omitempty"`
+	Ir int `jsonx:"omitempty"` // actually named omitempty, not an option
+	Io int `jsonx:"io,omitempty"`
 
-	Slr []string `json:"slr,random"`
-	Slo []string `json:"slo,omitempty"`
+	Slr []string `jsonx:"slr,random"`
+	Slo []string `jsonx:"slo,omitempty"`
 
-	Mr map[string]any `json:"mr"`
-	Mo map[string]any `json:",omitempty"`
+	Mr map[string]any `jsonx:"mr"`
+	Mo map[string]any `jsonx:",omitempty"`
 
-	Fr float64 `json:"fr"`
-	Fo float64 `json:"fo,omitempty"`
+	Fr float64 `jsonx:"fr"`
+	Fo float64 `jsonx:"fo,omitempty"`
 
-	Br bool `json:"br"`
-	Bo bool `json:"bo,omitempty"`
+	Br bool `jsonx:"br"`
+	Bo bool `jsonx:"bo,omitempty"`
 
-	Ur uint `json:"ur"`
-	Uo uint `json:"uo,omitempty"`
+	Ur uint `jsonx:"ur"`
+	Uo uint `jsonx:"uo,omitempty"`
 
-	Str struct{} `json:"str"`
-	Sto struct{} `json:"sto,omitempty"`
+	Str struct{} `jsonx:"str"`
+	Sto struct{} `jsonx:"sto,omitempty"`
 }
 
 var optionalsExpected = `{
@@ -72,11 +72,11 @@ func TestOmitEmpty(t *testing.T) {
 }
 
 type StringTag struct {
-	BoolStr    bool    `json:",string"`
-	IntStr     int64   `json:",string"`
-	UintptrStr uintptr `json:",string"`
-	StrStr     string  `json:",string"`
-	NumberStr  Number  `json:",string"`
+	BoolStr    bool    `jsonx:",string"`
+	IntStr     int64   `jsonx:",string"`
+	UintptrStr uintptr `jsonx:",string"`
+	StrStr     string  `jsonx:",string"`
+	NumberStr  Number  `jsonx:",string"`
 }
 
 func TestRoundtripStringTag(t *testing.T) {
@@ -647,7 +647,7 @@ func TestEmbeddedBug(t *testing.T) {
 }
 
 type BugD struct { // Same as BugA after tagging.
-	XXX string `json:"S"`
+	XXX string `jsonx:"S"`
 }
 
 // BugD's tagged S field should dominate BugA's.
@@ -760,7 +760,7 @@ func TestHTMLEscape(t *testing.T) {
 // golang.org/issue/8582
 func TestEncodePointerString(t *testing.T) {
 	type stringPointer struct {
-		N *int64 `json:"n,string"`
+		N *int64 `jsonx:"n,string"`
 	}
 	var n int64 = 42
 	b, err := Marshal(stringPointer{N: &n})
@@ -1035,10 +1035,10 @@ func TestMarshalFloat(t *testing.T) {
 func TestMarshalRawMessageValue(t *testing.T) {
 	type (
 		T1 struct {
-			M RawMessage `json:",omitempty"`
+			M RawMessage `jsonx:",omitempty"`
 		}
 		T2 struct {
-			M *RawMessage `json:",omitempty"`
+			M *RawMessage `jsonx:",omitempty"`
 		}
 	)
 
@@ -1165,7 +1165,7 @@ func TestMarshalUncommonFieldNames(t *testing.T) {
 func TestMarshalerError(t *testing.T) {
 	s := "test variable"
 	st := reflect.TypeOf(s)
-	errText := "json: test error"
+	errText := "jsonx: test error"
 
 	tests := []struct {
 		err  *MarshalerError
@@ -1173,11 +1173,11 @@ func TestMarshalerError(t *testing.T) {
 	}{
 		{
 			&MarshalerError{st, fmt.Errorf(errText), ""},
-			"json: error calling MarshalJSON for type " + st.String() + ": " + errText,
+			"jsonx: error calling MarshalJSON for type " + st.String() + ": " + errText,
 		},
 		{
 			&MarshalerError{st, fmt.Errorf(errText), "TestMarshalerError"},
-			"json: error calling TestMarshalerError for type " + st.String() + ": " + errText,
+			"jsonx: error calling TestMarshalerError for type " + st.String() + ": " + errText,
 		},
 	}
 

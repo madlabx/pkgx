@@ -44,7 +44,7 @@ func HttpGet(url string, timeout int) (*http.Response, error) {
 func HttpPostBody(url string, body interface{}, timeout int) (*http.Response, []byte, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
-		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
+		log.Errorf("Parse jsonx failed, url: %s, obj: %#v", url, body)
 		return nil, nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 	}
 
@@ -54,7 +54,7 @@ func HttpPostBody(url string, body interface{}, timeout int) (*http.Response, []
 func HttpPost(url string, body interface{}, timeout int) (*http.Response, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
-		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
+		log.Errorf("Parse jsonx failed, url: %s, obj: %#v", url, body)
 		return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 	}
 
@@ -77,7 +77,7 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 		return nil, nil, err
 	}
 	if method == "POST" {
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", "application/jsonx")
 	}
 	req.Header.Set("Connection", "close")
 	rsp, err := client.Do(req)
@@ -124,7 +124,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 		return nil, nil, err
 	}
 	if method == "POST" {
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", "application/jsonx")
 	}
 	req.Header.Set("Connection", "close")
 	rsp, err := client.Do(req)

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	json "github.com/madlabx/pkgx/jsonx"
+	"github.com/madlabx/pkgx/jsonx"
 
 	"github.com/labstack/echo"
 )
@@ -56,10 +56,10 @@ func (b *DefaultBinder) Bind(i interface{}, c echo.Context) (err error) {
 	ctype := req.Header.Get(HeaderContentType)
 	switch {
 	case strings.HasPrefix(ctype, MIMEApplicationJSON):
-		if err = json.NewDecoder(req.Body).Decode(i); err != nil {
+		if err = jsonx.NewDecoder(req.Body).Decode(i); err != nil {
 			var (
-				ute *json.UnmarshalTypeError
-				se  *json.SyntaxError
+				ute *jsonx.UnmarshalTypeError
+				se  *jsonx.SyntaxError
 			)
 			if errors.As(err, &ute) {
 				return NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Unmarshal type error: expected=%v, got=%v, field=%v, offset=%v", ute.Type, ute.Value, ute.Field, ute.Offset)).SetInternal(err)
@@ -125,7 +125,7 @@ func (b *DefaultBinder) bindData(ptr interface{}, data map[string][]string, tag 
 
 		inputValue, exists := data[inputFieldName]
 		if !exists {
-			// Go json.Unmarshal supports case insensitive binding.  However the
+			// Go jsonx.Unmarshal supports case insensitive binding.  However the
 			// url params are bound case sensitive which is inconsistent.  To
 			// fix this we must check all of the map values in a
 			// case-insensitive search.
