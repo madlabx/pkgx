@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/madlabx/pkgx/viperx"
 
@@ -17,12 +18,47 @@ type Trans struct {
 	Loss2     float64  `hx_default:"1.5"`
 	LossStr   string   `hx_default:"de"`
 }
+type Int64 struct {
+	Valued bool
+	V      int64
+}
+
+func (pt Int64) String() string {
+	if pt.Valued {
+		return strconv.FormatInt(pt.V, 10)
+	}
+	return "null1"
+}
+
+func (pt Int64) MarshalJSON() (b []byte, err error) {
+	if pt.Valued {
+		return []byte(strconv.FormatInt(pt.V, 10)), nil
+	} else {
+		return []byte("null"), nil
+	}
+}
+
+func (pt *Int64) UnmarshalJSON(b []byte) (err error) {
+	s := string(b)
+	if s == "null" {
+		pt.V = 123
+		return nil
+	}
+	pt.V, err = strconv.ParseInt(string(b), 10, 64)
+	pt.Valued = true
+	return err
+}
+
 type TusReq struct {
-	Name       string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob"`
-	TaskId     int64  `hx_place:"body" hx_must:"false" hx_default:"" hx_range:"0-21"`
-	CreateTime int64  `hx_tag:"query;create;true;;0-21"`
-	Timeout    int64  `hx_tag:";;true;;0-21"`
+	Name       *string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob" json:"nm,omitempty"`
+	TaskId     int64   `hx_place:"body" hx_must:"false" hx_default:"" hx_range:"0-21"`
+	CreateTime int64   `hx_tag:"query;create;true;;0-21"`
+	Timeout    Int64   `hx_tag:";;true;;0-21" json:"to,omitempty"`
 	Trans
+}
+
+type OnlyQuery struct {
+	Name string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob"`
 }
 
 func main() {
@@ -42,8 +78,21 @@ func main() {
 
 	httpx.RegisterHandle(func() int { return 0 }, nil, nil, nil, nil, nil, nil)
 
-	e.Any("/v1/file_service/health", func(ctx echo.Context) error {
+	e.GET("/v1/hx_tag/api", func(ctx echo.Context) error {
 		req := TusReq{}
+		if err := httpx.BindAndValidate(ctx, &req); err != nil {
+			log.Infof("Failed to bind, error:%v", err)
+			return httpx.SendResp(ctx, httpx.Wrap(err))
+		}
+
+		log.Infof("Request Status:%v", req)
+		log.Infof("Request Status:%v", req.Timeout)
+		//return ctx.JSON(200, req)
+		return httpx.SendResp(ctx, httpx.SuccessResp(req))
+	})
+
+	e.GET("/v1/hx_tag/only_query", func(ctx echo.Context) error {
+		req := OnlyQuery{}
 		if err := httpx.BindAndValidate(ctx, &req); err != nil {
 			log.Infof("Failed to bind, error:%v", err)
 			return httpx.SendResp(ctx, httpx.Wrap(err))

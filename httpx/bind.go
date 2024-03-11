@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo"
-	"github.com/madlabx/pkgx/log"
 )
 
 var (
@@ -73,36 +72,6 @@ func parseTag(t reflect.StructTag) (*httpXTag, error) {
 	}, nil
 }
 
-/*
-	BindAndValidate 提供从echo.Context里请求里Request的query parameter或者body里取相应的值，赋值给i，并做自校验。使用方式为
-
-	type Trans struct {
-		Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"default_name" hx_range:"1-2"`
-		Loss     float64 `hx_place:"body" hx_must:"false" hx_query_name:"loss" hx_default:"default_name" hx_range:"1.2,3.4"`
-	}
-
-	type TusReq struct {
-		Name       string `hx_place:"query" hx_must:"true" hx_query_name:"host_name" hx_default:"default_name" hx_range:"alice,bob"`
-		TaskId     int64  `hx_place:"body" hx_must:"false" hx_query_name:"task_id" hx_default:"7" hx_range:"0-21"`
-		Transfer   Trans
-	}
-
-httpx tag自定义如下：
-
-	  easy-to-read style: `hx_place:"query" hx_query_name:"name_in_query" hx_must:"true" hx_default:"def" hx_range:"1-20"
-		hx_place: query表示该值从query parameter里取，body从请求body里取。
-		hx_query_name： Query Parameters中定义的名称
-		hx_must: true表示必须，若未赋值，则报错；false表示可选
-		hx_default: 若未赋值，设为该默认值
-		hx_range: 根据i的字段的类型来校验range：若为整数，0-21表示0到21是合法的，否则报错；若为字符串，"alice,bob"表示只能为alice或bob，否则报错。
-
-	  compact style:`hx_tag:"f1;f2;f3;f4;f5"`
-		f1: same to hx_place
-		f2: same to hx_query_name
-		f3: same to hx_must
-		f4: same to hx_default
-		f5: same to hx_range
-*/
 func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context) error {
 	//1. 判断field的类型,如果是指针，要解开
 	if t.Kind() == reflect.Ptr {
@@ -209,6 +178,8 @@ func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context
 
 			if ht.defaultValue == value {
 				if field.Type.Kind() == reflect.Ptr {
+
+					//field.Set(reflect.New(field.Type().Elem()))
 					vs.Field(index).Set(reflect.ValueOf(&value))
 				} else {
 					vs.Field(index).SetString(value)
@@ -348,102 +319,133 @@ func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context
 	}
 	return nil
 }
+
+/*
+	BindAndValidate 提供从echo.Context里请求里Request的query parameter或者body里取相应的值，赋值给i，并做自校验。使用方式为
+
+	type Trans struct {
+		Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"default_name" hx_range:"1-2"`
+		Loss     float64 `hx_place:"body" hx_must:"false" hx_query_name:"loss" hx_default:"default_name" hx_range:"1.2,3.4"`
+	}
+
+	type TusReq struct {
+		Name       string `hx_place:"query" hx_must:"true" hx_query_name:"host_name" hx_default:"default_name" hx_range:"alice,bob"`
+		TaskId     int64  `hx_place:"body" hx_must:"false" hx_query_name:"task_id" hx_default:"7" hx_range:"0-21"`
+		Transfer   Trans
+	}
+
+httpx tag自定义如下：
+
+	  easy-to-read style: `hx_place:"query" hx_query_name:"name_in_query" hx_must:"true" hx_default:"def" hx_range:"1-20"
+		hx_place: query表示该值从query parameter里取，body从请求body里取。
+		hx_query_name： Query Parameters中定义的名称
+		hx_must: true表示必须，若未赋值，则报错；false表示可选
+		hx_default: 若未赋值，设为该默认值
+		hx_range: 根据i的字段的类型来校验range：若为整数，0-21表示0到21是合法的，否则报错；若为字符串，"alice,bob"表示只能为alice或bob，否则报错。
+
+	  compact style:`hx_tag:"f1;f2;f3;f4;f5"`
+		f1: same to hx_place
+		f2: same to hx_query_name
+		f3: same to hx_must
+		f4: same to hx_default
+		f5: same to hx_range
+*/
+
 func BindAndValidate(c echo.Context, i interface{}) error {
 	v := reflect.ValueOf(i).Elem()
 	t := v.Type()
 
-	//给i的成员解析赋值
-	if err := c.Bind(i); err != nil {
+	if err := c.Bind(i); err != nil && !strings.Contains(err.Error(), "Request body can't be empty") {
 		return err
 	}
 
-	log.Errorf("bind:%#v", i)
 	return bindAndValidateStructField(t, v, c)
 }
 
-func setIntField(value string, bitSize int, field reflect.Value) error {
-	if value == "" {
-		value = "0"
-	}
-	intVal, err := strconv.ParseInt(value, 10, bitSize)
-	if err == nil {
-		field.SetInt(intVal)
-	}
-	return err
-}
-
-func setUintField(value string, bitSize int, field reflect.Value) error {
-	if value == "" {
-		value = "0"
-	}
-	uintVal, err := strconv.ParseUint(value, 10, bitSize)
-	if err == nil {
-		field.SetUint(uintVal)
-	}
-	return err
-}
-
-func setBoolField(value string, field reflect.Value) error {
-	if value == "" {
-		value = "false"
-	}
-	boolVal, err := strconv.ParseBool(value)
-	if err == nil {
-		field.SetBool(boolVal)
-	}
-	return err
-}
-
-func setFloatField(value string, bitSize int, field reflect.Value) error {
-	if value == "" {
-		value = "0.0"
-	}
-	floatVal, err := strconv.ParseFloat(value, bitSize)
-	if err == nil {
-		field.SetFloat(floatVal)
-	}
-	return err
-}
-
-func setWithProperType(valueKind reflect.Kind, val string, structField reflect.Value) error {
-	// But also call it here, in case we're dealing with an array of BindUnmarshalers
-	//if ok, err := unmarshalField(valueKind, val, structField); ok {
-	//	return err
-	//}
-
-	switch valueKind {
-	case reflect.Ptr:
-		return setWithProperType(structField.Elem().Kind(), val, structField.Elem())
-	case reflect.Int:
-		return setIntField(val, 0, structField)
-	case reflect.Int8:
-		return setIntField(val, 8, structField)
-	case reflect.Int16:
-		return setIntField(val, 16, structField)
-	case reflect.Int32:
-		return setIntField(val, 32, structField)
-	case reflect.Int64:
-		return setIntField(val, 64, structField)
-	case reflect.Uint:
-		return setUintField(val, 0, structField)
-	case reflect.Uint8:
-		return setUintField(val, 8, structField)
-	case reflect.Uint16:
-		return setUintField(val, 16, structField)
-	case reflect.Uint32:
-		return setUintField(val, 32, structField)
-	case reflect.Uint64:
-		return setUintField(val, 64, structField)
-	case reflect.Bool:
-		return setBoolField(val, structField)
-	case reflect.Float32:
-		return setFloatField(val, 32, structField)
-	case reflect.Float64:
-		return setFloatField(val, 64, structField)
-	case reflect.String:
-		structField.SetString(val)
-	default:
-		return fmt.Errorf("unknown type:%v", valueKind)
-	}
-	return nil
-}
+//
+//func setIntField(value string, bitSize int, field reflect.Value) error {
+//	if value == "" {
+//		value = "0"
+//	}
+//	intVal, err := strconv.ParseInt(value, 10, bitSize)
+//	if err == nil {
+//		field.SetInt(intVal)
+//	}
+//	return err
+//}
+//
+//func setUintField(value string, bitSize int, field reflect.Value) error {
+//	if value == "" {
+//		value = "0"
+//	}
+//	uintVal, err := strconv.ParseUint(value, 10, bitSize)
+//	if err == nil {
+//		field.SetUint(uintVal)
+//	}
+//	return err
+//}
+//
+//func setBoolField(value string, field reflect.Value) error {
+//	if value == "" {
+//		value = "false"
+//	}
+//	boolVal, err := strconv.ParseBool(value)
+//	if err == nil {
+//		field.SetBool(boolVal)
+//	}
+//	return err
+//}
+//
+//func setFloatField(value string, bitSize int, field reflect.Value) error {
+//	if value == "" {
+//		value = "0.0"
+//	}
+//	floatVal, err := strconv.ParseFloat(value, bitSize)
+//	if err == nil {
+//		field.SetFloat(floatVal)
+//	}
+//	return err
+//}
+//
+//func setWithProperType(valueKind reflect.Kind, val string, structField reflect.Value) error {
+//	// But also call it here, in case we're dealing with an array of BindUnmarshalers
+//	//if ok, err := unmarshalField(valueKind, val, structField); ok {
+//	//	return err
+//	//}
+//
+//	switch valueKind {
+//	case reflect.Ptr:
+//		return setWithProperType(structField.Elem().Kind(), val, structField.Elem())
+//	case reflect.Int:
+//		return setIntField(val, 0, structField)
+//	case reflect.Int8:
+//		return setIntField(val, 8, structField)
+//	case reflect.Int16:
+//		return setIntField(val, 16, structField)
+//	case reflect.Int32:
+//		return setIntField(val, 32, structField)
+//	case reflect.Int64:
+//		return setIntField(val, 64, structField)
+//	case reflect.Uint:
+//		return setUintField(val, 0, structField)
+//	case reflect.Uint8:
+//		return setUintField(val, 8, structField)
+//	case reflect.Uint16:
+//		return setUintField(val, 16, structField)
+//	case reflect.Uint32:
+//		return setUintField(val, 32, structField)
+//	case reflect.Uint64:
+//		return setUintField(val, 64, structField)
+//	case reflect.Bool:
+//		return setBoolField(val, structField)
+//	case reflect.Float32:
+//		return setFloatField(val, 32, structField)
+//	case reflect.Float64:
+//		return setFloatField(val, 64, structField)
+//	case reflect.String:
+//		structField.SetString(val)
+//	default:
+//		return fmt.Errorf("unknown type:%v", valueKind)
+//	}
+//	return nil
+//}

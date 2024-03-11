@@ -20,7 +20,7 @@ const (
 )
 
 type LogConfig struct {
-	FileConfig log.FileConfig
+	FileConfig     log.FileConfig
 	Level          string
 	BodyBufferSize int `vx_default:"2000"`
 }
@@ -140,7 +140,7 @@ func (agw *ApiGateway) configEcho() {
 
 			contentType := c.Response().Header().Get(echo.HeaderContentType)
 
-			if isPrintableTextContent(contentType) || len(resBody) == 0 {
+			if isPrintableTextContent(contentType) {
 				agw.Logger.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:{%v}", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), string(resBody[:lp]))
 			} else {
 				agw.Logger.Infof("%v, reqBody[%v]:{%v}, resBody[%v]:[Non-printable ContentType:%v]", c.Request().URL.String(), len(reqBody), string(reqBody[:lq]), len(resBody), contentType)
