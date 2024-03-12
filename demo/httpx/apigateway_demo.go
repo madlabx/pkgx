@@ -91,7 +91,7 @@ func main() {
 
 	e.GET("/v1/hx_tag/api", func(ctx echo.Context) error {
 		req := TusReq{CCC: 7}
-		if err := httpx.BindAndValidate(ctx, &req); err != nil {
+		if err = httpx.BindAndValidate(ctx, &req); err != nil {
 			log.Infof("Failed to bind, error:%v", err)
 			return httpx.SendResp(ctx, httpx.Wrap(err))
 		}

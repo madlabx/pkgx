@@ -7,18 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/madlabx/pkgx/utils"
-
-	"github.com/madlabx/pkgx/errors"
-
-	"github.com/madlabx/pkgx/log"
-
 	"github.com/labstack/echo"
+	"github.com/madlabx/pkgx/errors"
 )
 
 var (
 	TagHttpX        = "hx_tag"
-	TagFiledPlace   = "hx_place"
+	TagFieldPlace   = "hx_place"
 	TagFieldName    = "hx_query_name"
 	TagFieldMust    = "hx_must"
 	TagFieldDefault = "hx_default"
@@ -40,21 +35,21 @@ func (ht *httpXTag) isEmpty() bool {
 		ht.valueRange == ""
 }
 
-func parseHttpXDefault(t reflect.StructTag) (string, error) {
+func parseHttpXDefault(t reflect.StructTag, path string) (string, error) {
 	tags := t.Get(TagHttpX)
 
 	//in case of having `hx_tag:";;;default_value;"``
 	if len(tags) > 0 {
 		tagList := strings.Split(tags, ";")
 		if len(tagList) != 5 {
-			return "", errors.Errorf("invalid "+TagHttpX+":'%v' which should have 5 fields", tags)
+			return "", errors.Errorf("invalid "+TagHttpX+":'%v' which should have 5 fields, path:%v", tags, path)
 		}
 
 		return tagList[3], nil
 	}
 
 	//in case of having `hx_default:"default_value"`
-	return t.Get(TagFiledPlace), nil
+	return t.Get(TagFieldDefault), nil
 }
 
 func parseHttpXTag(t reflect.StructTag) (*httpXTag, error) {
@@ -71,7 +66,7 @@ func parseHttpXTag(t reflect.StructTag) (*httpXTag, error) {
 		place, name, mustStr, defaultValue, valueRange = tagList[0], tagList[1], tagList[2], tagList[3], tagList[4]
 	} else {
 		place, name, mustStr, defaultValue, valueRange =
-			t.Get(TagFiledPlace),
+			t.Get(TagFieldPlace),
 			t.Get(TagFieldName),
 			t.Get(TagFieldMust),
 			t.Get(TagFieldDefault),
@@ -125,38 +120,33 @@ hx_tag自定义如下：
 		f4: same to hx_default
 		f5: same to hx_range
 */
-func BindAndValidate(c echo.Context, i interface{}) error {
-	err := setHttpXDefaults(i)
+func BindAndValidate(c echo.Context, i any) error {
+	err := setHttpXDefaults(i, "")
 	if err != nil {
 		return err
 	}
 
-	if err := c.Bind(i); err != nil && !strings.Contains(err.Error(), "Request body can't be empty") {
+	if err = c.Bind(i); err != nil && !strings.Contains(err.Error(), "Request body can't be empty") {
 		return err
 	}
-	v := reflect.ValueOf(i).Elem()
-	t := v.Type()
 
-	log.Errorf("AfterBind: %v", utils.ToString(i))
-
-	return bindAndValidateStructField(t, v, c)
+	return validate(c, reflect.ValueOf(i), "")
 }
 
-func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context) error {
-	//1. 判断field的类型,如果是指针，要解开
-	if t.Kind() == reflect.Ptr {
-		if !vs.IsValid() {
-			return nil
-		}
-		vs = vs.Elem()
+func validate(c echo.Context, vs reflect.Value, path string) error {
+	t := vs.Type()
+	path += "." + t.Name()
+	switch t.Kind() {
+	default:
+		return errors.Errorf("invalid type:%v, path:%s", t.Kind(), path)
+	case reflect.Invalid:
+		return nil
+	case reflect.Pointer:
+		return validate(c, vs.Elem(), path)
+	case reflect.Struct:
+		break
 	}
 
-	//2. 如果不是结构体，报错
-	if t.Kind() != reflect.Struct {
-		return errors.Errorf("%v should be struct, type: %s", t.Name(), t.Kind().String())
-	}
-
-	//3. 遍历成员解析
 	for index := 0; index < t.NumField(); index++ {
 		field := t.Field(index)
 		v := vs.Field(index)
@@ -165,24 +155,20 @@ func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context
 		if field.Type.Kind() == reflect.Ptr {
 			kind = reflect.TypeOf(v.Interface()).Elem().Kind()
 			v = v.Elem()
-
-			//kind = v.Type().Kind()
 		}
 
-		// 如果是匿名字段，或者非time.Time的结构体
 		if field.Anonymous ||
 			(field.Type.Kind() == reflect.Struct && field.Type != reflect.TypeOf(time.Time{})) {
-			err := bindAndValidateStructField(field.Type, v, c)
+			err := validate(c, v, path)
 			if err != nil {
 				return err
 			}
 			continue
 		}
 
-		//parse httpx tag
 		ht, err := parseHttpXTag(field.Tag)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "path:"+path+"."+field.Name)
 		}
 
 		if ht.isEmpty() {
@@ -199,7 +185,6 @@ func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context
 
 		switch ht.place {
 		case "query":
-			//Todo
 			value = c.QueryParam(name)
 			if value == "" {
 				value = c.QueryParam(strings.ToLower(name))
@@ -217,17 +202,15 @@ func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context
 				return errors.Errorf("request param %s is required", name)
 			}
 		default:
-			return errors.Errorf("invalid "+TagFiledPlace+" tag: %v", ht.place)
+			return errors.Errorf("invalid "+TagFieldPlace+" tag: %v", ht.place)
 		}
 
-		//校验字段值
 		if value == "" {
 			continue
 		}
 
 		switch kind {
 		case reflect.String:
-
 			if ht.valueRange != "" {
 				allowedValues := strings.Split(ht.valueRange, ",")
 				validValue := false
@@ -337,10 +320,11 @@ func bindAndValidateStructField(t reflect.Type, vs reflect.Value, c echo.Context
 	return nil
 }
 
-func setHttpXDefaults(data interface{}) error {
-	v := reflect.ValueOf(data)
+func setHttpXDefaults(i any, path string) error {
+	v := reflect.ValueOf(i)
+	path = v.Type().Name()
 	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return errors.Errorf("data must be a non-nil pointer to a struct, %v", v)
+		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), path)
 	}
 
 	v = v.Elem()
@@ -350,11 +334,11 @@ func setHttpXDefaults(data interface{}) error {
 		if v.Kind() == reflect.Invalid {
 			v.Addr().Set(reflect.New(t))
 		}
-		return setHttpXDefaults(v.Interface())
+		return setHttpXDefaults(v.Interface(), path)
 	}
 
 	if t.Kind() != reflect.Struct {
-		return errors.Errorf("data must be a pointer to a struct, current:%v", t.Kind())
+		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), path)
 	}
 
 	for i := 0; i < v.NumField(); i++ {
@@ -371,7 +355,7 @@ func setHttpXDefaults(data interface{}) error {
 				if fieldValue.Kind() == reflect.Ptr {
 					fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 				}
-				err := setHttpXDefaults(fieldValue.Addr().Interface())
+				err := setHttpXDefaults(fieldValue.Addr().Interface(), path)
 				if err != nil {
 					return err
 				}
@@ -379,7 +363,7 @@ func setHttpXDefaults(data interface{}) error {
 			continue
 		}
 
-		defaultValue, err := parseHttpXDefault(field.Tag)
+		defaultValue, err := parseHttpXDefault(field.Tag, path)
 		if err != nil {
 			return err
 		}
@@ -388,9 +372,8 @@ func setHttpXDefaults(data interface{}) error {
 			continue
 		}
 
-		if err := setWithProperType(field.Type, defaultValue, fieldValue.Addr()); err != nil {
-			log.Errorf("failed to setWithProperType %v %v to %v", field.Name, field.Type.Name(), defaultValue)
-			return err
+		if err = setWithProperType(field.Type, defaultValue, fieldValue.Addr()); err != nil {
+			return errors.Wrapf(err, "path:%v.%v", path, field.Name)
 		}
 	}
 
@@ -479,7 +462,7 @@ func setWithProperType(t reflect.Type, val string, v reflect.Value) error {
 	case reflect.String:
 		structField.SetString(val)
 	default:
-		return errors.Errorf("unknown type:%v", t.Kind())
+		return errors.Errorf("invalid type:%v", t.Kind())
 	}
 	return nil
 }
