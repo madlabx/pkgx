@@ -12,11 +12,31 @@ import (
 	"github.com/madlabx/pkgx/log"
 )
 
+type Boy struct {
+	Age  int `hx_default:"5"`
+	Name int
+}
+
 type Trans struct {
-	Bandwidth uint64   `hx_place:"query" hx_must:"false" hx_query_name:"bandwidth" hx_default:"default_name" hx_range:"1-2"`
+	Bandwidth uint64   `hx_place:"query" hx_must:"false" hx_query_name:"bandwidth" hx_default:"1" hx_range:"1-2"`
 	Loss      *float64 `hx_place:"body" hx_must:"false" hx_default:"1.4" hx_range:"1.2-3.4"`
 	Loss2     float64  `hx_default:"1.5"`
 	LossStr   string   `hx_default:"de"`
+	B         []Boy
+	C         struct {
+		C1 int
+		C2 int
+		Boy
+	}
+}
+
+type TusReq struct {
+	Name       *string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"22" hx_range:"alice,bob"`
+	TaskId     int64   `hx_place:"body" hx_must:"false" hx_default:"12" hx_range:"0-21"`
+	CreateTime int64
+	CCC        int
+	Timeout    Int64 `hx_tag:";;true;;0-21"`
+	T          *Trans
 }
 type Int64 struct {
 	Valued bool
@@ -37,7 +57,6 @@ func (pt Int64) MarshalJSON() (b []byte, err error) {
 		return []byte("null"), nil
 	}
 }
-
 func (pt *Int64) UnmarshalJSON(b []byte) (err error) {
 	s := string(b)
 	if s == "null" {
@@ -47,14 +66,6 @@ func (pt *Int64) UnmarshalJSON(b []byte) (err error) {
 	pt.V, err = strconv.ParseInt(string(b), 10, 64)
 	pt.Valued = true
 	return err
-}
-
-type TusReq struct {
-	Name       *string `hx_place:"query" hx_query_name:"host_name" hx_must:"true" hx_default:"" hx_range:"alice,bob" jsonx:"nm,omitempty"`
-	TaskId     int64   `hx_place:"body" hx_must:"false" hx_default:"" hx_range:"0-21"`
-	CreateTime int64   `hx_tag:"query;create;true;;0-21"`
-	Timeout    Int64   `hx_tag:";;true;;0-21" jsonx:"to,omitempty"`
-	Trans
 }
 
 type OnlyQuery struct {
@@ -79,7 +90,7 @@ func main() {
 	httpx.RegisterHandle(func() int { return 0 }, nil, nil, nil, nil, nil, nil)
 
 	e.GET("/v1/hx_tag/api", func(ctx echo.Context) error {
-		req := TusReq{}
+		req := TusReq{CCC: 7}
 		if err := httpx.BindAndValidate(ctx, &req); err != nil {
 			log.Infof("Failed to bind, error:%v", err)
 			return httpx.SendResp(ctx, httpx.Wrap(err))
@@ -124,7 +135,7 @@ func main() {
 //
 //type Trans struct {
 //	Bandwidth uint64
-//	Loss      *float64 `jsonx:"loss" default:"2.4"`
+//	Loss      *float64 `json:"loss" default:"2.4"`
 //}
 //
 //func setDefaultLossValue(next echo.HandlerFunc) echo.HandlerFunc {

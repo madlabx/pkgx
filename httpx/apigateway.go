@@ -93,7 +93,7 @@ func (agw *ApiGateway) initAccessLog() error {
 
 func isPrintableTextContent(contentType string) bool {
 	if strings.HasPrefix(contentType, "text/") ||
-		strings.Contains(contentType, "jsonx") ||
+		strings.Contains(contentType, "json") ||
 		strings.Contains(contentType, "xml") ||
 		strings.Contains(contentType, "html") {
 		return true

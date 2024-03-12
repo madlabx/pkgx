@@ -10,7 +10,7 @@ import (
 
 func main() {
 	var cfgFile string
-	pflag.StringVar(&cfgFile, "config", "../conf/viperx.jsonx", "config file")
+	pflag.StringVar(&cfgFile, "config", "../conf/viperx.json", "config file")
 	pflag.String("sys.loglevel", "KO", "log level")
 
 	if err := viperx.BindPFlags(pflag.CommandLine); err != nil {

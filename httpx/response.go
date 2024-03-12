@@ -11,12 +11,12 @@ import (
 )
 
 type JsonResponse struct {
-	RequestId *string `jsonx:"RequestId,omitempty"`
-	Status    int     `jsonx:"-"`
-	Code      *string `jsonx:"Code,omitempty"`
-	CodeInt   *int    `jsonx:"CodeInt,omitempty"`
-	Message   *string `jsonx:"Message,omitempty"`
-	Result    any     `jsonx:"Result,omitempty"`
+	RequestId *string `json:"RequestId,omitempty"`
+	Status    int     `json:"-"`
+	Code      *string `json:"Code,omitempty"`
+	CodeInt   *int    `json:"CodeInt,omitempty"`
+	Message   *string `json:"Message,omitempty"`
+	Result    any     `json:"Result,omitempty"`
 	err       error
 }
 

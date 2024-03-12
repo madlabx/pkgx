@@ -9,12 +9,12 @@ import (
 )
 
 type SignCfg struct {
-	SignEnable bool     `jsonx:"signEnable,omitempty"`
-	SignFormat []string `jsonx:"signFormat,omitempty"`
-	SignSecret string   `jsonx:"signSecret,omitempty"`
-	SignAlgo   string   `jsonx:"signAlgo,omitempty"`
-	SignEnc    string   `jsonx:"signAlgo,omitempty"`
-	SignExpire int      `jsonx:"signExpire,omitempty"`
+	SignEnable bool     `json:"signEnable,omitempty"`
+	SignFormat []string `json:"signFormat,omitempty"`
+	SignSecret string   `json:"signSecret,omitempty"`
+	SignAlgo   string   `json:"signAlgo,omitempty"`
+	SignEnc    string   `json:"signAlgo,omitempty"`
+	SignExpire int      `json:"signExpire,omitempty"`
 }
 
 func (sc *SignCfg) Merge(sc2 *SignCfg) {

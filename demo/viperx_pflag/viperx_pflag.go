@@ -45,7 +45,7 @@ func main() {
 
 	pflag.Parse()
 
-	if err := viperx.ParseConfig(&viperxConif, "DEMO", "../conf/viperx.jsonx"); err != nil {
+	if err := viperx.ParseConfig(&viperxConif, "DEMO", "../conf/viperx.json"); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

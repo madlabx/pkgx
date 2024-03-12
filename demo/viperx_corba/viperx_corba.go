@@ -78,7 +78,7 @@ func main() {
 
 // initConfig reads ENV variable and config file if set.
 func initConfig() {
-	if err := viperx.ParseConfig(&viperxConfig, "DEMO", "conf/viperx.jsonx"); err != nil {
+	if err := viperx.ParseConfig(&viperxConfig, "DEMO", "conf/viperx.json"); err != nil {
 		logrus.Println(err)
 	}
 }
