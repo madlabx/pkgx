@@ -133,12 +133,12 @@ func BindAndValidate(c echo.Context, i any) error {
 	return validate(c, reflect.ValueOf(i), "")
 }
 
+// validate recursively validates each field of a struct based on the `httpXTag`.
 func validate(c echo.Context, vs reflect.Value, path string) error {
 	t := vs.Type()
-	path += "." + t.Name()
 	switch t.Kind() {
 	default:
-		return errors.Errorf("invalid type:%v, path:%s", t.Kind(), path)
+		return errors.Errorf("invalid type:%v, path:%s.%v", t.Kind(), path, t.Name())
 	case reflect.Invalid:
 		return nil
 	case reflect.Pointer:
@@ -159,7 +159,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 
 		if field.Anonymous ||
 			(field.Type.Kind() == reflect.Struct && field.Type != reflect.TypeOf(time.Time{})) {
-			err := validate(c, v, path)
+			err := validate(c, v, path+"."+field.Name)
 			if err != nil {
 				return err
 			}
@@ -191,7 +191,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			}
 
 			if ht.must && value == "" {
-				return errors.Errorf("query param %s is required", name)
+				return errors.Errorf("missing query paramm, name:%v, path:%v.%v", name, path, field.Name)
 			}
 		case "", "body":
 			if v.IsValid() && v.CanInterface() {
@@ -199,10 +199,10 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			}
 
 			if ht.must && value == "" {
-				return errors.Errorf("request param %s is required", name)
+				return errors.Errorf("missing query paramm, name:%v, path:%v.%v", name, path, field.Name)
 			}
 		default:
-			return errors.Errorf("invalid "+TagFieldPlace+" tag: %v", ht.place)
+			return errors.Errorf("invalid "+TagFieldPlace+" tag: %v, path:%v.%v", ht.place, path, field.Name)
 		}
 
 		if value == "" {
@@ -221,20 +221,21 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 					}
 				}
 				if !validValue {
-					return errors.Errorf("invalid value:%s for field %s, must be one of %v", value, name, allowedValues)
+					return errors.Errorf("invalid value:%s for field %s, must be one of %v, path:%v.%v",
+						value, name, allowedValues, path, field.Name)
 				}
 			}
 
 		case reflect.Bool:
 			_, err := strconv.ParseBool(value)
 			if err != nil {
-				return errors.Errorf("invalid value:%s for field %s", value, name)
+				return errors.Errorf("invalid value:%s for field %s, path:%v.%v", value, name, path, field.Name)
 			}
 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			fieldValue, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be an integer", value, name)
+				return errors.Errorf("invalid value:%v for field %s, should be an integer, path:%v.%v", value, name, path, field.Name)
 			}
 
 			if ht.valueRange != "" {
@@ -242,50 +243,55 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				minVal, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
 				maxVal, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+TagFieldRange+":%v, field:%v", ht.valueRange, field.Name)
+					return errors.Errorf("invalid format for "+TagFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d", value, name, minVal, maxVal)
+					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v.%v",
+						value, name, minVal, maxVal, path, field.Name)
 				}
 			}
 
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			fieldValue, err := strconv.ParseUint(value, 10, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be an unsigned integer", value, name)
+				return errors.Errorf("invalid value:%v for field %s, should be an unsigned integer, path:%v.%v",
+					value, name, path, field.Name)
 			}
 			if ht.valueRange != "" {
 				rangeValues := strings.Split(ht.valueRange, "-")
 				if len(rangeValues) != 2 {
-					return errors.Errorf("invalid "+TagFieldRange+":%s for field %v", ht.valueRange, name)
+					return errors.Errorf("invalid "+TagFieldRange+":%s, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				minVal, e1 := strconv.ParseUint(rangeValues[0], 10, 64)
 				maxVal, e2 := strconv.ParseUint(rangeValues[1], 10, 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+TagFieldRange+":%v, field:%v", ht.valueRange, field.Name)
+					return errors.Errorf("invalid format for "+TagFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d", value, name, minVal, maxVal)
+					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v.%v", value, name, minVal, maxVal, path, field.Name)
 				}
 			}
 
 		case reflect.Float32, reflect.Float64:
 			fieldValue, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be a float", value, name)
+				return errors.Errorf("invalid value:%v for field %s, should be a float, path:%v.%v",
+					value, name, path, field.Name)
 			}
 			if ht.valueRange != "" {
 				rangeValues := strings.Split(ht.valueRange, "-")
 				if len(rangeValues) != 2 {
-					return errors.Errorf("invalid value range:%s", ht.valueRange)
+					return errors.Errorf("invalid value range:%s, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				minVal, e1 := strconv.ParseFloat(rangeValues[0], 64)
 				maxVal, e2 := strconv.ParseFloat(rangeValues[1], 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+TagFieldRange+":%v, field %v", ht.valueRange, field.Name)
+					return errors.Errorf("invalid format for "+TagFieldRange+":%v, field %v, path:%v.%v",
+						ht.valueRange, field.Name, path, field.Name)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%v for field %v, must be between %v and %v", value, name, minVal, maxVal)
+					return errors.Errorf("invalid value:%v for field %v, must be between %v and %v, path:%v.%v",
+						value, name, minVal, maxVal, path, field.Name)
 				}
 			}
 
@@ -294,7 +300,8 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				layout := "2006-01-02T15:04:05"
 				timeValue, err := time.Parse(layout, value)
 				if err != nil {
-					return errors.Errorf("invalid time format for field %s, should be in YYYY-MM-DDTHH:MM:SS format", name)
+					return errors.Errorf("invalid time format for field %s, should be in YYYY-MM-DDTHH:MM:SS format, path:%v.%v",
+						name, path, field.Name)
 				}
 
 				if ht.valueRange != "" {
@@ -302,19 +309,22 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 					minUnix, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
 					maxUnix, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
 					if e1 != nil || e2 != nil {
-						return errors.Errorf("invalid format for "+TagFieldRange+":%v, field %v", ht.valueRange, field.Name)
+						return errors.Errorf("invalid format for "+TagFieldRange+":%v, path:%v.%v",
+							ht.valueRange, field.Name, path, field.Name)
 					}
 
 					unixTime := timeValue.Unix()
 					if unixTime < minUnix || unixTime > maxUnix {
-						return errors.Errorf("%s is not within the allowed range for field %s", value, name)
+						return errors.Errorf("%s is not within the allowed range for field %s, path:%v.%v",
+							value, name, path, field.Name)
 					}
 				}
 			} else {
-				return errors.Errorf("unsupported struct field type:%v for field %s", field.Type, name)
+				return errors.Errorf("unsupported struct field type:%v for field %s,  path:%v.%v",
+					field.Type, name, path, field.Name)
 			}
 		default:
-			return errors.Errorf("unsupported field type:%v", reflect.TypeOf(v))
+			return errors.Errorf("unsupported field type:%v, path:%v.%v", reflect.TypeOf(v), path, field.Name)
 		}
 	}
 	return nil
@@ -424,6 +434,7 @@ func setFloatField(value string, bitSize int, field reflect.Value) error {
 	return err
 }
 
+// setWithProperType sets a struct field with a value, ensuring it is of the proper type.
 func setWithProperType(t reflect.Type, val string, v reflect.Value) error {
 	if v.Elem().Kind() == reflect.Invalid {
 		v.Set(reflect.New(t))
