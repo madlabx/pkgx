@@ -13,7 +13,7 @@ import (
 type Config struct {
 	Ttt string `vx_name:"" vx_short:"t" vx_default:"1234" vx_desc:"test for ttt"`
 	Nc  struct {
-		Sys   int64  `vx_flag:";;1001;bandwith"`
+		Sys   int64  `vx_tag:";;1001;bandwith"`
 		Limit string `vx_name:"sys" vx_short:"l" vx_default:"100" vx_desc:"test for limit"`
 	}
 	Sys struct {

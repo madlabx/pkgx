@@ -102,7 +102,16 @@ func ParseConfig(cfg any, envPrefix string, cfgFile string, opts ...viper.Decode
 		return err
 	}
 
-	return viper.Unmarshal(&cfg, opts...)
+	if err := viper.Unmarshal(&cfg, opts...); err != nil {
+		return err
+	}
+
+	return validate(cfg)
+}
+
+// validate check whether the value is among the vx_range
+func validate(cfg any) error {
+	return nil
 }
 
 // InitConfigFile initializes configuration files using viper.

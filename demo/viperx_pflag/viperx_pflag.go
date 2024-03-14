@@ -21,7 +21,7 @@ type UserCfg struct {
 }
 
 type NetCap struct {
-	Bw int64 `vx_flag:";;100;bandwith"`
+	Bw int64 `vx_tag:";;100;bandwith"`
 }
 
 type Config struct {

@@ -1,21 +1,23 @@
 package viperx
 
 import (
+	"reflect"
+	"strings"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"reflect"
-	"strings"
 )
 
 // TODO 增加must，必须项
 var (
-	DefaultMapStructureTagName = "mapstructure"
-	TagViperX                  = "vx_flag"
-	TagFieldName               = "vx_name"
-	TagFieldDefault            = "vx_default"
-	TagFieldDescription        = "vx_desc"
-	TagFieldShort              = "vx_short"
+	defaultMapStructureTagName = "mapstructure"
+	tagViperX                  = "vx_tag"
+	tagViperXFieldName         = "vx_name"
+	tagViperXFieldDefault      = "vx_default"
+	tagViperXFieldDescription  = "vx_desc"
+	tagViperXFieldShort        = "vx_short"
+	tagViperXFieldRange        = "vx_range"
 )
 
 func getMapStructureTagName(opts ...viper.DecoderConfigOption) string {
@@ -25,7 +27,7 @@ func getMapStructureTagName(opts ...viper.DecoderConfigOption) string {
 	}
 
 	if c.TagName == "" {
-		return DefaultMapStructureTagName
+		return defaultMapStructureTagName
 	}
 	return c.TagName
 }
@@ -51,13 +53,13 @@ func parseFlatStyle(vxTag string) (string, string, string, string) {
 }
 
 func parseFlagOpts(tag reflect.StructTag) (string, string, string, string) {
-	vxTagString, ok := tag.Lookup(TagViperX)
+	vxTagString, ok := tag.Lookup(tagViperX)
 	if ok {
-		//Address  string `vx_flag:"address;a;127.0.0.1;address to listen on"`
+		//Address  string `vx_tag:"address;a;127.0.0.1;address to listen on"`
 		return parseFlatStyle(vxTagString)
 	} else {
 		//Address  string `vx_name:"address" vx_short:"a" vx_default:"127.0.0.1" vx_desc:"address to listen on"`
-		return tag.Get(TagFieldName), tag.Get(TagFieldShort), tag.Get(TagFieldDefault), tag.Get(TagFieldDescription)
+		return tag.Get(tagViperXFieldName), tag.Get(tagViperXFieldShort), tag.Get(tagViperXFieldDefault), tag.Get(tagViperXFieldDescription)
 	}
 }
 

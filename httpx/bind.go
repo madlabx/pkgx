@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	TagHttpX        = "hx_tag"
-	TagFieldPlace   = "hx_place"
-	TagFieldName    = "hx_query_name"
-	TagFieldMust    = "hx_must"
-	TagFieldDefault = "hx_default"
-	TagFieldRange   = "hx_range"
+	tagHttpX             = "hx_tag"
+	tagHttpXFieldPlace   = "hx_place"
+	tagHttpXFieldName    = "hx_query_name"
+	tagHttpXFieldMust    = "hx_must"
+	tagHttpXFieldDefault = "hx_default"
+	tagHttpXFieldRange   = "hx_range"
 )
 
 type httpXTag struct {
@@ -36,20 +36,20 @@ func (ht *httpXTag) isEmpty() bool {
 }
 
 func parseHttpXDefault(t reflect.StructTag, path string) (string, error) {
-	tags := t.Get(TagHttpX)
+	tags := t.Get(tagHttpX)
 
 	//in case of having `hx_tag:";;;default_value;"``
 	if len(tags) > 0 {
 		tagList := strings.Split(tags, ";")
 		if len(tagList) != 5 {
-			return "", errors.Errorf("invalid "+TagHttpX+":'%v' which should have 5 fields, path:%v", tags, path)
+			return "", errors.Errorf("invalid "+tagHttpX+":'%v' which should have 5 fields, path:%v", tags, path)
 		}
 
 		return tagList[3], nil
 	}
 
 	//in case of having `hx_default:"default_value"`
-	return t.Get(TagFieldDefault), nil
+	return t.Get(tagHttpXFieldDefault), nil
 }
 
 func parseHttpXTag(t reflect.StructTag) (*httpXTag, error) {
@@ -57,20 +57,20 @@ func parseHttpXTag(t reflect.StructTag) (*httpXTag, error) {
 		place, name, mustStr, defaultValue, valueRange string
 		must                                           bool
 	)
-	tags := t.Get(TagHttpX)
+	tags := t.Get(tagHttpX)
 	if len(tags) > 0 {
 		tagList := strings.Split(tags, ";")
 		if len(tagList) != 5 {
-			return nil, errors.Errorf("invalid "+TagHttpX+":'%v' which should have 5 fields", tags)
+			return nil, errors.Errorf("invalid "+tagHttpX+":'%v' which should have 5 fields", tags)
 		}
 		place, name, mustStr, defaultValue, valueRange = tagList[0], tagList[1], tagList[2], tagList[3], tagList[4]
 	} else {
 		place, name, mustStr, defaultValue, valueRange =
-			t.Get(TagFieldPlace),
-			t.Get(TagFieldName),
-			t.Get(TagFieldMust),
-			t.Get(TagFieldDefault),
-			t.Get(TagFieldRange)
+			t.Get(tagHttpXFieldPlace),
+			t.Get(tagHttpXFieldName),
+			t.Get(tagHttpXFieldMust),
+			t.Get(tagHttpXFieldDefault),
+			t.Get(tagHttpXFieldRange)
 	}
 
 	if strings.ToLower(mustStr) == "true" {
@@ -202,7 +202,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				return errors.Errorf("missing query paramm, name:%v, path:%v.%v", name, path, field.Name)
 			}
 		default:
-			return errors.Errorf("invalid "+TagFieldPlace+" tag: %v, path:%v.%v", ht.place, path, field.Name)
+			return errors.Errorf("invalid "+tagHttpXFieldPlace+" tag: %v, path:%v.%v", ht.place, path, field.Name)
 		}
 
 		if value == "" {
@@ -243,7 +243,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				minVal, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
 				maxVal, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+TagFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
 					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v.%v",
@@ -260,12 +260,12 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			if ht.valueRange != "" {
 				rangeValues := strings.Split(ht.valueRange, "-")
 				if len(rangeValues) != 2 {
-					return errors.Errorf("invalid "+TagFieldRange+":%s, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid "+tagHttpXFieldRange+":%s, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				minVal, e1 := strconv.ParseUint(rangeValues[0], 10, 64)
 				maxVal, e2 := strconv.ParseUint(rangeValues[1], 10, 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+TagFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
 					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v.%v", value, name, minVal, maxVal, path, field.Name)
@@ -286,7 +286,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				minVal, e1 := strconv.ParseFloat(rangeValues[0], 64)
 				maxVal, e2 := strconv.ParseFloat(rangeValues[1], 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+TagFieldRange+":%v, field %v, path:%v.%v",
+					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, field %v, path:%v.%v",
 						ht.valueRange, field.Name, path, field.Name)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
@@ -309,7 +309,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 					minUnix, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
 					maxUnix, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
 					if e1 != nil || e2 != nil {
-						return errors.Errorf("invalid format for "+TagFieldRange+":%v, path:%v.%v",
+						return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v.%v",
 							ht.valueRange, field.Name, path, field.Name)
 					}
 
@@ -359,9 +359,11 @@ func setHttpXDefaults(i any, path string) error {
 		}
 
 		if field.Type.Kind() == reflect.Struct ||
-			(field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct) {
+			(field.Type.Kind() == reflect.Ptr &&
+				field.Type.Elem().Kind() == reflect.Struct &&
+				field.Type != reflect.TypeOf(&time.Time{})) {
 
-			if fieldValue.CanAddr() {
+			if fieldValue.CanSet() {
 				if fieldValue.Kind() == reflect.Ptr {
 					fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 				}
@@ -441,6 +443,7 @@ func setWithProperType(t reflect.Type, val string, v reflect.Value) error {
 	}
 	structField := v.Elem()
 
+	//TODO value time.Time
 	switch t.Kind() {
 	case reflect.Ptr:
 		return setWithProperType(t.Elem(), val, structField)
