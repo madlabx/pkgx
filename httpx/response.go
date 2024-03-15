@@ -20,7 +20,7 @@ type JsonResponse struct {
 	err       error
 }
 
-func (e *JsonResponse) ToString() string {
+func (e *JsonResponse) String() string {
 	jsonString, _ := json.Marshal(e)
 	return string(jsonString)
 }
@@ -86,7 +86,8 @@ func StatusResp(status int) error {
 	}
 }
 
-func ErrStrResp(status, code int, msg string) *JsonResponse {
+func ErrStrResp(status, code int, format string, a ...any) *JsonResponse {
+	msg := fmt.Sprintf(format, a...)
 	codeStr := handleECodeToStr(code)
 	return &JsonResponse{
 		err:     errors.New(msg),
@@ -148,10 +149,10 @@ func SendResp(c echo.Context, resp error) error {
 		return c.JSON(e.Status, e)
 	default:
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"RequestId": handleNewRequestId(),
 			"CodeInt":   handleGetECodeInternalError(),
 			"Code":      handleECodeToStr(handleGetECodeInternalError()),
 			"Message":   e.Error(),
-			"RequestId": handleNewRequestId(),
 		})
 	}
 }

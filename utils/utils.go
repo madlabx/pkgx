@@ -405,3 +405,21 @@ func FormatToSql(data interface{}) string {
 
 	return output.String()
 }
+
+func InArray[T comparable](x T, ss []T) bool {
+	for _, s := range ss {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+func InRange[T comparable](x T, ss ...T) bool {
+	for _, s := range ss {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
