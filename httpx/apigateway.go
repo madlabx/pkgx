@@ -128,9 +128,12 @@ func (agw *ApiGateway) configEcho() {
 			//TODO remove \n in the end of resBody
 			lp = max(0, lp-1)
 
-			cId := c.Request().Header.Get("X-Onething-CusId")
-			tId := c.Request().Header.Get("X-Onething-TrsId")
-			pId := c.Request().Header.Get("X-Onething-PltId")
+			cId := c.Request().Header.Get("X-Onething-Cid")
+			c.Response().Header().Set("X-Onething-Cid",cId)
+
+			tId := c.Request().Header.Get("X-Onething-Tid")
+			c.Response().Header().Set("X-Onething-Tid",tId)
+			pId := c.Request().Header.Get("X-Onething-Pid")
 			reqContentType := c.Request().Header.Get(echo.HeaderContentType)
 			resContentType := c.Response().Header().Get(echo.HeaderContentType)
 

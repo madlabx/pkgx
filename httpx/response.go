@@ -136,7 +136,7 @@ func SendResp(c echo.Context, resp error) error {
 	}
 
 	rid := handleNewRequestId()
-	c.Response().Header().Set("X-Onething-PltId", rid)
+	c.Response().Header().Set("X-Onething-Pid", rid)
 	var e *JsonResponse
 	switch {
 	case errors.As(resp, &e):
