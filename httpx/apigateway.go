@@ -55,6 +55,7 @@ type ApiGateway struct {
 	Logger      *logrus.Logger
 	LogConf     *LogConfig
 	EntryFormat logrus.Formatter
+
 }
 
 func NewApiGateway(pCtx context.Context, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
@@ -127,10 +128,15 @@ func (agw *ApiGateway) configEcho() {
 			//TODO remove \n in the end of resBody
 			lp = max(0, lp-1)
 
+			cId := c.Request().Header.Get("X-Onething-CusId")
+			tId := c.Request().Header.Get("X-Onething-TrsId")
+			pId := c.Request().Header.Get("X-Onething-PltId")
 			reqContentType := c.Request().Header.Get(echo.HeaderContentType)
 			resContentType := c.Response().Header().Get(echo.HeaderContentType)
 
 			buf := &strings.Builder{}
+
+			fmt.Fprintf(buf, "CID:%s,TID:%s,PID:%s,", cId, tId, pId)
 			doPrint := false
 			if len(reqBody) > 0 {
 				doPrint = true

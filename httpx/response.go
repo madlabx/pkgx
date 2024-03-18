@@ -135,6 +135,8 @@ func SendResp(c echo.Context, resp error) error {
 		return c.NoContent(http.StatusOK)
 	}
 
+	rid := handleNewRequestId()
+	c.Response().Header().Set("X-Onething-PltId", rid)
 	var e *JsonResponse
 	switch {
 	case errors.As(resp, &e):
@@ -143,13 +145,12 @@ func SendResp(c echo.Context, resp error) error {
 		}
 
 		if e.RequestId == nil {
-			rid := handleNewRequestId()
 			e.RequestId = &rid
 		}
 		return c.JSON(e.Status, e)
 	default:
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"RequestId": handleNewRequestId(),
+			"RequestId": rid,
 			"CodeInt":   handleGetECodeInternalError(),
 			"Code":      handleECodeToStr(handleGetECodeInternalError()),
 			"Message":   e.Error(),
