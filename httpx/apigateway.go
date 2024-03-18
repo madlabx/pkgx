@@ -128,18 +128,25 @@ func (agw *ApiGateway) configEcho() {
 			//TODO remove \n in the end of resBody
 			lp = max(0, lp-1)
 
+			buf := &strings.Builder{}
 			cId := c.Request().Header.Get("X-Onething-Cid")
-			c.Response().Header().Set("X-Onething-Cid",cId)
-
+			if cId != "" {
+				c.Response().Header().Set("X-Onething-Cid",cId)
+				fmt.Fprintf(buf, "cid:%s,", cId)
+			}
 			tId := c.Request().Header.Get("X-Onething-Tid")
-			c.Response().Header().Set("X-Onething-Tid",tId)
+			if tId != "" {
+				c.Response().Header().Set("X-Onething-Tid", tId)
+				fmt.Fprintf(buf, "tid:%s,", tId)
+			}
 			pId := c.Request().Header.Get("X-Onething-Pid")
+			if pId != "" {
+				fmt.Fprintf(buf, "pid:%s,", pId)
+			}
+
 			reqContentType := c.Request().Header.Get(echo.HeaderContentType)
 			resContentType := c.Response().Header().Get(echo.HeaderContentType)
 
-			buf := &strings.Builder{}
-
-			fmt.Fprintf(buf, "CID:%s,TID:%s,PID:%s,", cId, tId, pId)
 			doPrint := false
 			if len(reqBody) > 0 {
 				doPrint = true
