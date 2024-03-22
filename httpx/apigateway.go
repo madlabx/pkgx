@@ -20,7 +20,7 @@ const (
 type LogConfig struct {
 	LogFile        log.FileConfig
 	Level          string `vx_default:"info"`
-	BodyBufferSize int    `vx_default:"2000"`
+	BodyBufferSize int64  `vx_default:"2048"`
 	// Tags to construct the Logger format.
 	//
 	// - time_unix
@@ -43,10 +43,13 @@ type LogConfig struct {
 	// - latency_human (Human readable)
 	// - bytes_in (Bytes received)
 	// - bytes_out (Bytes sent)
-	// - header:<NAME>
+	// - header_in:<NAME>
+	// - header_out:<NAME>
 	// - query:<NAME>
 	// - form:<NAME>
-	ContentFormat string `vx_default:"${time_custom} ACCE ${status} ${method} ${latency_human} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${uri} ${id} ${error}\n"`
+	// - body_in (request body)
+	// - body_out (response body)
+	ContentFormat string `vx_default:"${time_custom} ACCE ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} cid:${header_in:X-Onething-Cid} tid:${header_in:X-Onething-Tid} pid:${header_out:X-Onething-Pid} handler:${header_out:X-Onething-Handler} ${body_in} ${body_out} ${error}\n"`
 }
 
 type ApiGateway struct {
@@ -55,7 +58,6 @@ type ApiGateway struct {
 	Logger      *logrus.Logger
 	LogConf     *LogConfig
 	EntryFormat logrus.Formatter
-
 }
 
 func NewApiGateway(pCtx context.Context, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
@@ -110,71 +112,25 @@ func (agw *ApiGateway) initAccessLog() error {
 	return nil
 }
 
-func isPrintableTextContent(contentType string) bool {
-	return strings.HasPrefix(contentType, echo.MIMEApplicationJSON)
-}
-
 func (agw *ApiGateway) configEcho() {
 	var (
 		e = agw.Echo
 	)
+
 	e.Logger.SetOutput(log.StandardLogger().Out)
-	e.Use(middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
-		Handler: func(c echo.Context, reqBody []byte, resBody []byte) {
 
-			lq := min(len(reqBody), agw.LogConf.BodyBufferSize)
-			//lq = max(0, lq-1)
-			lp := min(len(resBody), agw.LogConf.BodyBufferSize)
-			//TODO remove \n in the end of resBody
-			lp = max(0, lp-1)
-
-			buf := &strings.Builder{}
-			cId := c.Request().Header.Get("X-Onething-Cid")
-			if cId != "" {
-				c.Response().Header().Set("X-Onething-Cid",cId)
-				fmt.Fprintf(buf, "cid:%s,", cId)
+	e.Use(LoggerWithConfig(LoggerConfig{
+		ResponseBodySkipper: func(c echo.Context) bool {
+			if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
+				strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
+				return true
 			}
-			tId := c.Request().Header.Get("X-Onething-Tid")
-			if tId != "" {
-				c.Response().Header().Set("X-Onething-Tid", tId)
-				fmt.Fprintf(buf, "tid:%s,", tId)
-			}
-			pId := c.Request().Header.Get("X-Onething-Pid")
-			if pId != "" {
-				fmt.Fprintf(buf, "pid:%s,", pId)
-			}
-
-			reqContentType := c.Request().Header.Get(echo.HeaderContentType)
-			resContentType := c.Response().Header().Get(echo.HeaderContentType)
-
-			doPrint := false
-			if len(reqBody) > 0 {
-				doPrint = true
-				if isPrintableTextContent(reqContentType) {
-					fmt.Fprintf(buf, "reqBody[%v]:{%s}", len(reqBody), string(reqBody[:lq]))
-				} else {
-					fmt.Fprintf(buf, "reqBody[%v]:[ContentType:%v]", len(reqBody), reqContentType)
-				}
-			}
-
-			if len(resBody) > 0 {
-				doPrint = true
-				if isPrintableTextContent(resContentType) {
-					fmt.Fprintf(buf, " resBody[%v]:{%s}", len(resBody), string(resBody[:lp]))
-				} else {
-					fmt.Fprintf(buf, " resBody[%v]:[ContentType:%v]", len(resContentType), resContentType)
-				}
-			}
-
-			if doPrint {
-				agw.Logger.Printf("--ACCE-- " + buf.String())
-			}
+			return false
 		},
-	}))
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           agw.LogConf.ContentFormat,
 		CustomTimeFormat: "2006/01/02 15:04:05.000",
 		Output:           agw.Logger.Out,
+		bodyBufferSize:   agw.LogConf.BodyBufferSize,
 	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{

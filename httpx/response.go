@@ -153,7 +153,7 @@ func SendResp(c echo.Context, resp error) error {
 			"RequestId": rid,
 			"CodeInt":   handleGetECodeInternalError(),
 			"Code":      handleECodeToStr(handleGetECodeInternalError()),
-			"Message":   e.Error(),
+			"Message":   resp.Error(),
 		})
 	}
 }
