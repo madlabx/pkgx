@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -14,13 +15,13 @@ import (
 )
 
 const (
-	DefaultB0dyBufferSize = 2000
+	DefaultBodyBufferSize = 4096
 )
 
 type LogConfig struct {
 	LogFile        log.FileConfig
 	Level          string `vx_default:"info"`
-	BodyBufferSize int64  `vx_default:"2048"`
+	BodyBufferSize int64  `vx_default:"4096"`
 	// Tags to construct the Logger format.
 	//
 	// - time_unix
@@ -49,7 +50,7 @@ type LogConfig struct {
 	// - form:<NAME>
 	// - body_in (request body)
 	// - body_out (response body)
-	ContentFormat string `vx_default:"${time_custom} ACCE ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} cid:${header_in:X-Onething-Cid} tid:${header_in:X-Onething-Tid} pid:${header_out:X-Onething-Pid} handler:${header_out:X-Onething-Handler} ${body_in} ${body_out} ${error}\n"`
+	ContentFormat string `vx_default:"${time_custom} ACCE ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${error}\n"`
 }
 
 type ApiGateway struct {
@@ -105,10 +106,6 @@ func (agw *ApiGateway) initAccessLog() error {
 	}
 	agw.Logger.SetFormatter(agw.EntryFormat)
 
-	if agw.LogConf.BodyBufferSize == 0 {
-		agw.LogConf.BodyBufferSize = DefaultB0dyBufferSize
-	}
-
 	return nil
 }
 
@@ -120,11 +117,15 @@ func (agw *ApiGateway) configEcho() {
 	e.Logger.SetOutput(log.StandardLogger().Out)
 
 	e.Use(LoggerWithConfig(LoggerConfig{
-		ResponseBodySkipper: func(c echo.Context) bool {
-			if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
-				strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
+		OutBodyFilter: func(c echo.Context) bool {
+			//文件上传下载不要打印
+			if c.Request().Method == http.MethodPost {
 				return true
 			}
+			//if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
+			//	strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
+			//	return true
+			//}
 			return false
 		},
 		Format:           agw.LogConf.ContentFormat,
