@@ -1,11 +1,16 @@
 package httpx
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/madlabx/pkgx/typex"
 
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/errors"
@@ -52,7 +57,7 @@ func parseHttpXDefault(t reflect.StructTag, path string) (string, error) {
 	return t.Get(tagHttpXFieldDefault), nil
 }
 
-func parseHttpXTag(t reflect.StructTag) (*httpXTag, error) {
+func parseHttpXTag(t reflect.StructTag, paths ...string) (*httpXTag, error) {
 	var (
 		place, name, mustStr, defaultValue, valueRange string
 		must                                           bool
@@ -61,7 +66,7 @@ func parseHttpXTag(t reflect.StructTag) (*httpXTag, error) {
 	if len(tags) > 0 {
 		tagList := strings.Split(tags, ";")
 		if len(tagList) != 5 {
-			return nil, errors.Errorf("invalid "+tagHttpX+":'%v' which should have 5 fields", tags)
+			return nil, errors.Errorf("invalid "+tagHttpX+":'%v' which should have 5 fields, path:%v", tags, paths)
 		}
 		place, name, mustStr, defaultValue, valueRange = tagList[0], tagList[1], tagList[2], tagList[3], tagList[4]
 	} else {
@@ -120,8 +125,15 @@ hx_tag自定义如下：
 		f4: same to hx_default
 		f5: same to hx_range
 */
+type hxParser struct {
+	bodyMap    typex.JsonMap
+	bodyParsed bool
+}
+
 func BindAndValidate(c echo.Context, i any) error {
-	err := setHttpXDefaults(i, "")
+	hp := new(hxParser)
+	hp.bodyMap = make(typex.JsonMap)
+	err := hp.setHttpXDefaultAndCheckMust(c, i)
 	if err != nil {
 		return err
 	}
@@ -166,9 +178,9 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			continue
 		}
 
-		ht, err := parseHttpXTag(field.Tag)
+		ht, err := parseHttpXTag(field.Tag, path+"."+field.Name)
 		if err != nil {
-			return errors.Wrapf(err, "path:"+path+"."+field.Name)
+			return errors.Wrap(err)
 		}
 
 		if ht.isEmpty() {
@@ -330,11 +342,11 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 	return nil
 }
 
-func setHttpXDefaults(i any, path string) error {
+func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, i any, paths ...string) error {
 	v := reflect.ValueOf(i)
-	path = v.Type().Name()
+	paths = append(paths, v.Type().Name())
 	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), path)
+		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), paths)
 	}
 
 	v = v.Elem()
@@ -344,11 +356,11 @@ func setHttpXDefaults(i any, path string) error {
 		if v.Kind() == reflect.Invalid {
 			v.Addr().Set(reflect.New(t))
 		}
-		return setHttpXDefaults(v.Interface(), path)
+		return hp.setHttpXDefaultAndCheckMust(c, v.Interface(), paths...)
 	}
 
 	if t.Kind() != reflect.Struct {
-		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), path)
+		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), paths)
 	}
 
 	for i := 0; i < v.NumField(); i++ {
@@ -367,7 +379,7 @@ func setHttpXDefaults(i any, path string) error {
 				if fieldValue.Kind() == reflect.Ptr {
 					fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 				}
-				err := setHttpXDefaults(fieldValue.Addr().Interface(), path)
+				err := hp.setHttpXDefaultAndCheckMust(c, fieldValue.Addr().Interface(), paths...)
 				if err != nil {
 					return err
 				}
@@ -375,21 +387,68 @@ func setHttpXDefaults(i any, path string) error {
 			continue
 		}
 
-		defaultValue, err := parseHttpXDefault(field.Tag, path)
+		newPaths := append(paths, field.Name)
+		hxTags, err := parseHttpXTag(field.Tag, newPaths...)
 		if err != nil {
 			return err
 		}
 
-		if defaultValue == "" || !fieldValue.CanSet() {
-			continue
+		if hxTags.defaultValue != "" && fieldValue.CanSet() {
+			if err = setWithProperType(field.Type, hxTags.defaultValue, fieldValue.Addr()); err != nil {
+				return errors.Wrapf(err, "path:%v", newPaths)
+			}
 		}
 
-		if err = setWithProperType(field.Type, defaultValue, fieldValue.Addr()); err != nil {
-			return errors.Wrapf(err, "path:%v.%v", path, field.Name)
+		if hxTags.must {
+			if !hp.bodyParsed {
+				hp.bodyParsed = true
+				if c.Request().ContentLength > 0 &&
+					strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
+					// Request
+					var reqBody []byte
+					if c.Request().Body != nil { // Read
+						reqBody, _ = io.ReadAll(c.Request().Body)
+					}
+					c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
+					if err = json.Unmarshal(reqBody, &hp.bodyMap); err != nil {
+						return errors.Wrap(err)
+					}
+				}
+			}
+
+			if !isMapValueExist(hp.bodyMap, newPaths...) {
+				return errors.Errorf("request must member, path:%v", paths)
+			}
+
 		}
 	}
 
 	return nil
+}
+
+func isMapValueExist(data map[string]interface{}, path ...string) bool {
+	if len(path) == 0 {
+		return false
+	}
+
+	// 递归遍历map的路径
+	cursor := data
+	for _, key := range path {
+		value, ok := cursor[key]
+		if !ok {
+			return false
+		}
+		cursor, ok = value.(map[string]interface{})
+		if !ok {
+			return true
+		}
+	}
+
+	// 检查最终路径对应的值是否存在
+	if reflect.ValueOf(cursor).IsValid() {
+		return true
+	}
+	return false
 }
 
 func setIntField(value string, bitSize int, field reflect.Value) error {

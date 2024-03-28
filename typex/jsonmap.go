@@ -29,7 +29,7 @@ func (v *Error) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type JsonMap map[string]interface{}
+type JsonMap map[string]any
 
 func NewJsonMap(m map[string]string) JsonMap {
 

@@ -1,8 +1,10 @@
 package httpx
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,41 +30,100 @@ func (m *MockContext) Bind(i interface{}) error {
 	return args.Error(0)
 }
 
+type handleFunc func() echo.Context
+
 func TestBindAndValidate(t *testing.T) {
 	// Define our test cases
+	const (
+		getInput, doAssert = 1, 2
+	)
+	mockRequest := func(method, uri string, body io.Reader) handleFunc {
+		return func() echo.Context {
+			e := echo.New()
+			req := httptest.NewRequest(method, uri, body)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			return c
+		}
+	}
+	as := func(expect, output any) bool {
+		return assert.Equal(t, expect, output)
+	}
 	testCases := []struct {
-		testName       string
-		buildContext   func() echo.Context
-		inputStruct    interface{}
-		expectedOutput error
+		testName      string
+		buildContext  handleFunc
+		structFunc    func(any) any
+		expectedError error
 	}{
 		{
-			testName: "ValidQueryParams",
-			buildContext: func() echo.Context {
-				e := echo.New()
-				req := httptest.NewRequest(http.MethodGet, "/?bandwidth=2", nil)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-				return c
+			testName:     "ValidQueryParams",
+			buildContext: mockRequest(http.MethodGet, "/?bandwidth=2", nil),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"1" hx_range:"1-10"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(uint64(2), parsed.(*inputStruct).Bandwidth)
 			},
-			inputStruct: &struct {
-				Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"1" hx_range:"1-10"`
-			}{},
-			expectedOutput: nil,
+			expectedError: nil,
 		},
 		{
-			testName: "MissingRequiredQueryParam",
-			buildContext: func() echo.Context {
-				e := echo.New()
-				req := httptest.NewRequest(http.MethodGet, "/?lostparam=2", nil)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-				return c
+			testName:     "MissingRequiredQueryParam",
+			buildContext: mockRequest(http.MethodGet, "/?lostparam=2", nil),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"1" hx_range:"1-10"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(uint64(2), parsed.(*inputStruct).Bandwidth)
 			},
-			inputStruct: &struct {
-				Bandwidth *uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"1" hx_range:"1-10"`
-			}{},
-			expectedOutput: errors.New("missing query paramm, name:bandwidth, path:.Bandwidth"),
+
+			expectedError: errors.New("missing query paramm, name:bandwidth, path:.Bandwidth"),
+		},
+
+		{
+			testName:     "BodyInt64Value",
+			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Bandwidth":1}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_must:"true" hx_default:"1" hx_range:"1-10"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(uint64(1), parsed.(*inputStruct).Bandwidth)
+			},
+
+			expectedError: nil,
+		},
+
+		{
+			testName:     "BodyIntLostMust",
+			buildContext: mockRequest(http.MethodGet, "/", nil),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_must:"true" hx_range:"0-10"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(uint64(0), parsed.(*inputStruct).Bandwidth)
+			},
+
+			expectedError: nil,
 		},
 		// Add more test cases as needed.
 	}
@@ -72,12 +133,17 @@ func TestBindAndValidate(t *testing.T) {
 			c := tc.buildContext()
 
 			// Act - call our function to test
-			err := BindAndValidate(c, tc.inputStruct)
+			input := tc.structFunc(nil)
+			err := BindAndValidate(c, input)
 
 			if err != nil {
-				assert.Equal(t, tc.expectedOutput.Error(), err.Error())
+				if tc.expectedError == nil {
+					assert.Nil(t, err)
+					return
+				}
+				assert.Equal(t, tc.expectedError.Error(), err.Error())
 			} else {
-				assert.Equal(t, err, tc.expectedOutput)
+				tc.structFunc(input)
 			}
 			// Assert - check the output is as expected
 

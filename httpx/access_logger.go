@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -136,9 +135,9 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 			// Request
 			var reqBody []byte
 			if c.Request().Body != nil { // Read
-				reqBody, _ = ioutil.ReadAll(c.Request().Body)
+				reqBody, _ = io.ReadAll(c.Request().Body)
 			}
-			c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(reqBody)) // Reset
+			c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
 
 			return fmt.Sprintf("in[%v]:%v", bytesIn, string(reqBody[:bytesIn]))
 		}
