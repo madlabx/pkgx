@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/madlabx/pkgx/log"
 
 	"github.com/madlabx/pkgx/typex"
 
@@ -86,6 +89,10 @@ func parseHttpXTag(t reflect.StructTag, paths ...string) (*httpXTag, error) {
 		return nil, errors.Errorf("invalid must tag:%v", mustStr)
 	}
 
+	if must && len(defaultValue) > 0 {
+		log.Warn("should not define both of hx_must and hx_defaultValue")
+	}
+
 	return &httpXTag{
 		place:        place,
 		name:         name,
@@ -93,6 +100,13 @@ func parseHttpXTag(t reflect.StructTag, paths ...string) (*httpXTag, error) {
 		defaultValue: defaultValue,
 		valueRange:   valueRange,
 	}, nil
+}
+
+type hxParser struct {
+	bodyMap     typex.JsonMap
+	bodyParsed  bool
+	path        []string
+	queryParams url.Values
 }
 
 /*
@@ -125,15 +139,11 @@ hx_tag自定义如下：
 		f4: same to hx_default
 		f5: same to hx_range
 */
-type hxParser struct {
-	bodyMap    typex.JsonMap
-	bodyParsed bool
-}
-
 func BindAndValidate(c echo.Context, i any) error {
 	hp := new(hxParser)
 	hp.bodyMap = make(typex.JsonMap)
-	err := hp.setHttpXDefaultAndCheckMust(c, i)
+	hp.queryParams = c.QueryParams()
+	err := hp.setHttpXDefaultAndCheckMust(c, i, []string{}...)
 	if err != nil {
 		return err
 	}
@@ -142,19 +152,19 @@ func BindAndValidate(c echo.Context, i any) error {
 		return err
 	}
 
-	return validate(c, reflect.ValueOf(i), "")
+	return validate(c, reflect.ValueOf(i), []string{}...)
 }
 
 // validate recursively validates each field of a struct based on the `httpXTag`.
-func validate(c echo.Context, vs reflect.Value, path string) error {
+func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 	t := vs.Type()
 	switch t.Kind() {
 	default:
-		return errors.Errorf("invalid type:%v, path:%s.%v", t.Kind(), path, t.Name())
+		return errors.Errorf("invalid type:%v, path:%s.%v", t.Kind(), paths, t.Name())
 	case reflect.Invalid:
 		return nil
 	case reflect.Pointer:
-		return validate(c, vs.Elem(), path)
+		return validate(c, vs.Elem(), paths...)
 	case reflect.Struct:
 		break
 	}
@@ -169,16 +179,17 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			v = v.Elem()
 		}
 
+		newPaths := append(paths, field.Name)
 		if field.Anonymous ||
 			(field.Type.Kind() == reflect.Struct && field.Type != reflect.TypeOf(time.Time{})) {
-			err := validate(c, v, path+"."+field.Name)
+			err := validate(c, v, newPaths...)
 			if err != nil {
 				return err
 			}
 			continue
 		}
 
-		ht, err := parseHttpXTag(field.Tag, path+"."+field.Name)
+		ht, err := parseHttpXTag(field.Tag, newPaths...)
 		if err != nil {
 			return errors.Wrap(err)
 		}
@@ -203,7 +214,7 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			}
 
 			if ht.must && value == "" {
-				return errors.Errorf("missing query paramm, name:%v, path:%v.%v", name, path, field.Name)
+				return errors.Errorf("missing query param %v", name)
 			}
 		case "", "body":
 			if v.IsValid() && v.CanInterface() {
@@ -211,10 +222,10 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 			}
 
 			if ht.must && value == "" {
-				return errors.Errorf("missing query paramm, name:%v, path:%v.%v", name, path, field.Name)
+				return errors.Errorf("missing body paramm %v", newPaths)
 			}
 		default:
-			return errors.Errorf("invalid "+tagHttpXFieldPlace+" tag: %v, path:%v.%v", ht.place, path, field.Name)
+			return errors.Errorf("invalid "+tagHttpXFieldPlace+" tag: %v, path:%v", ht.place, newPaths)
 		}
 
 		if value == "" {
@@ -233,21 +244,21 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 					}
 				}
 				if !validValue {
-					return errors.Errorf("invalid value:%s for field %s, must be one of %v, path:%v.%v",
-						value, name, allowedValues, path, field.Name)
+					return errors.Errorf("invalid value:%s for field %s, must be one of %v, path:%v",
+						value, name, allowedValues, newPaths)
 				}
 			}
 
 		case reflect.Bool:
 			_, err := strconv.ParseBool(value)
 			if err != nil {
-				return errors.Errorf("invalid value:%s for field %s, path:%v.%v", value, name, path, field.Name)
+				return errors.Errorf("invalid value:%s for field %s, path:%v", value, name, newPaths)
 			}
 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			fieldValue, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be an integer, path:%v.%v", value, name, path, field.Name)
+				return errors.Errorf("invalid value:%v for field %s, should be an integer, path:%v", value, name, newPaths)
 			}
 
 			if ht.valueRange != "" {
@@ -255,55 +266,55 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				minVal, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
 				maxVal, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v", ht.valueRange, newPaths)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v.%v",
-						value, name, minVal, maxVal, path, field.Name)
+					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v",
+						value, name, minVal, maxVal, newPaths)
 				}
 			}
 
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			fieldValue, err := strconv.ParseUint(value, 10, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be an unsigned integer, path:%v.%v",
-					value, name, path, field.Name)
+				return errors.Errorf("invalid value:%v for field %s, should be an unsigned integer, path:%v",
+					value, name, newPaths)
 			}
 			if ht.valueRange != "" {
 				rangeValues := strings.Split(ht.valueRange, "-")
 				if len(rangeValues) != 2 {
-					return errors.Errorf("invalid "+tagHttpXFieldRange+":%s, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid "+tagHttpXFieldRange+":%s, path:%v", ht.valueRange, newPaths)
 				}
 				minVal, e1 := strconv.ParseUint(rangeValues[0], 10, 64)
 				maxVal, e2 := strconv.ParseUint(rangeValues[1], 10, 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v", ht.valueRange, newPaths)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v.%v", value, name, minVal, maxVal, path, field.Name)
+					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v", value, name, minVal, maxVal, newPaths)
 				}
 			}
 
 		case reflect.Float32, reflect.Float64:
 			fieldValue, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be a float, path:%v.%v",
-					value, name, path, field.Name)
+				return errors.Errorf("invalid value:%v for field %s, should be a float, path:%v",
+					value, name, newPaths)
 			}
 			if ht.valueRange != "" {
 				rangeValues := strings.Split(ht.valueRange, "-")
 				if len(rangeValues) != 2 {
-					return errors.Errorf("invalid value range:%s, path:%v.%v", ht.valueRange, path, field.Name)
+					return errors.Errorf("invalid value range:%s, path:%v", ht.valueRange, newPaths)
 				}
 				minVal, e1 := strconv.ParseFloat(rangeValues[0], 64)
 				maxVal, e2 := strconv.ParseFloat(rangeValues[1], 64)
 				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, field %v, path:%v.%v",
-						ht.valueRange, field.Name, path, field.Name)
+					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, field %v, path:%v",
+						ht.valueRange, field.Name, newPaths)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%v for field %v, must be between %v and %v, path:%v.%v",
-						value, name, minVal, maxVal, path, field.Name)
+					return errors.Errorf("invalid value:%v for field %v, must be between %v and %v, path:%v",
+						value, name, minVal, maxVal, newPaths)
 				}
 			}
 
@@ -312,8 +323,8 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 				layout := "2006-01-02T15:04:05"
 				timeValue, err := time.Parse(layout, value)
 				if err != nil {
-					return errors.Errorf("invalid time format for field %s, should be in YYYY-MM-DDTHH:MM:SS format, path:%v.%v",
-						name, path, field.Name)
+					return errors.Errorf("invalid time format for field %s, should be in YYYY-MM-DDTHH:MM:SS format, path:%v",
+						name, newPaths)
 				}
 
 				if ht.valueRange != "" {
@@ -321,30 +332,29 @@ func validate(c echo.Context, vs reflect.Value, path string) error {
 					minUnix, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
 					maxUnix, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
 					if e1 != nil || e2 != nil {
-						return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v.%v",
-							ht.valueRange, field.Name, path, field.Name)
+						return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v",
+							ht.valueRange, newPaths)
 					}
 
 					unixTime := timeValue.Unix()
 					if unixTime < minUnix || unixTime > maxUnix {
-						return errors.Errorf("%s is not within the allowed range for field %s, path:%v.%v",
-							value, name, path, field.Name)
+						return errors.Errorf("%s is not within the allowed range for field %s, path:%v",
+							value, name, newPaths)
 					}
 				}
 			} else {
-				return errors.Errorf("unsupported struct field type:%v for field %s,  path:%v.%v",
-					field.Type, name, path, field.Name)
+				return errors.Errorf("unsupported struct field type:%v for field %s,  path:%v",
+					field.Type, name, newPaths)
 			}
 		default:
-			return errors.Errorf("unsupported field type:%v, path:%v.%v", reflect.TypeOf(v), path, field.Name)
+			return errors.Errorf("unsupported field type:%v, path:%v", reflect.TypeOf(v), newPaths)
 		}
 	}
 	return nil
 }
 
-func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, i any, paths ...string) error {
-	v := reflect.ValueOf(i)
-	paths = append(paths, v.Type().Name())
+func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, input any, paths ...string) error {
+	v := reflect.ValueOf(input)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
 		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), paths)
 	}
@@ -370,6 +380,7 @@ func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, i any, paths ...
 			fieldValue.Addr().Set(reflect.New(field.Type))
 		}
 
+		newPaths := append(paths, field.Name)
 		if field.Type.Kind() == reflect.Struct ||
 			(field.Type.Kind() == reflect.Ptr &&
 				field.Type.Elem().Kind() == reflect.Struct &&
@@ -379,7 +390,8 @@ func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, i any, paths ...
 				if fieldValue.Kind() == reflect.Ptr {
 					fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 				}
-				err := hp.setHttpXDefaultAndCheckMust(c, fieldValue.Addr().Interface(), paths...)
+
+				err := hp.setHttpXDefaultAndCheckMust(c, fieldValue.Addr().Interface(), newPaths...)
 				if err != nil {
 					return err
 				}
@@ -387,7 +399,6 @@ func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, i any, paths ...
 			continue
 		}
 
-		newPaths := append(paths, field.Name)
 		hxTags, err := parseHttpXTag(field.Tag, newPaths...)
 		if err != nil {
 			return err
@@ -417,13 +428,40 @@ func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, i any, paths ...
 			}
 
 			if !isMapValueExist(hp.bodyMap, newPaths...) {
-				return errors.Errorf("request must member, path:%v", paths)
+				//check in query param
+				fieldName := field.Name
+				if len(hxTags.name) > 0 {
+					fieldName = hxTags.name
+				}
+				if !hp.existInQueryParam(fieldName) {
+					return errors.Errorf("missing param %s", strings.Join(newPaths, "."))
+				}
 			}
 
 		}
 	}
 
 	return nil
+}
+
+func (hp *hxParser) existInQueryParam(key string) bool {
+	_, exists := hp.queryParams[key]
+	if exists {
+		return true
+	}
+
+	// Go json.Unmarshal supports case insensitive binding.  However the
+	// url params are bound case sensitive which is inconsistent.  To
+	// fix this we must check all of the map values in a
+	// case-insensitive search.
+	key = strings.ToLower(key)
+	for k, _ := range hp.queryParams {
+		if strings.ToLower(k) == key {
+			return true
+		}
+	}
+
+	return false
 }
 
 func isMapValueExist(data map[string]interface{}, path ...string) bool {
@@ -445,10 +483,7 @@ func isMapValueExist(data map[string]interface{}, path ...string) bool {
 	}
 
 	// 检查最终路径对应的值是否存在
-	if reflect.ValueOf(cursor).IsValid() {
-		return true
-	}
-	return false
+	return reflect.ValueOf(cursor).IsValid()
 }
 
 func setIntField(value string, bitSize int, field reflect.Value) error {

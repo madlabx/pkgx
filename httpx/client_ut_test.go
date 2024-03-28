@@ -49,12 +49,12 @@ func (ts *ClientTestSuite) TestConnectFail() {
 }
 
 func (ts *ClientTestSuite) TestReadError() {
-	require := require.New(ts.T())
+	t := require.New(ts.T())
 	var proxy *httptest.Server
 
 	server, proxy, client, err := createTestServerClient(func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("server got one request %s", r.URL)
-		w.Write([]byte(fmt.Sprintf("hello from url: %s", r.URL)))
+		_, _ = w.Write([]byte(fmt.Sprintf("hello from url: %s", r.URL)))
 	}, func(w http.ResponseWriter, r *http.Request) {
 		c := []byte(fmt.Sprintf("hello from url: %s", r.URL))
 		repeat := 1000000
@@ -63,7 +63,7 @@ func (ts *ClientTestSuite) TestReadError() {
 		quit := make(chan struct{})
 		go func() {
 			for idx := 0; idx < repeat; idx++ {
-				w.Write(c)
+				_, _ = w.Write(c)
 			}
 			quit <- struct{}{}
 		}()
@@ -73,7 +73,7 @@ func (ts *ClientTestSuite) TestReadError() {
 		<-quit
 	})
 
-	require.Nil(err)
+	t.Nil(err)
 
 	defer server.Close()
 	defer proxy.Close()
@@ -82,21 +82,21 @@ func (ts *ClientTestSuite) TestReadError() {
 	log.Info("proxy url", proxy.URL)
 
 	stats, err := client.GetAndDrop(server.URL + "/test")
-	require.NotNil(err)
-	require.Equal(stats.Error, ERR_READ)
+	t.NotNil(err)
+	t.Equal(stats.Error, ERR_READ)
 
 	time.Sleep(1 * time.Second)
 }
 
 func (ts *ClientTestSuite) TestGet() {
-	require := require.New(ts.T())
+	t := require.New(ts.T())
 
 	server, proxy, client, err := createTestServerClient(func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("server got one request %s", r.URL)
-		w.Write([]byte(fmt.Sprintf("hello from url: %s", r.URL)))
+		_, _ = w.Write([]byte(fmt.Sprintf("hello from url: %s", r.URL)))
 	}, nil)
 
-	require.Nil(err)
+	t.Nil(err)
 
 	defer server.Close()
 	defer proxy.Close()
@@ -105,8 +105,8 @@ func (ts *ClientTestSuite) TestGet() {
 	log.Info("proxy url", proxy.URL)
 
 	stats, err := client.GetAndDrop(server.URL + "/test")
-	require.Nil(err)
-	require.Equal(stats.Error, ERR_NONE)
+	t.Nil(err)
+	t.Equal(stats.Error, ERR_NONE)
 
 	time.Sleep(1 * time.Second)
 }
@@ -127,14 +127,14 @@ func createTestServerClient(serverHandler func(http.ResponseWriter, *http.Reques
 			}
 
 			proxyReq.Header = r.Header
-			if rsps, err := proxyClient.Do(proxyReq); err == nil {
-				defer rsps.Body.Close()
+			if rasps, err := proxyClient.Do(proxyReq); err == nil {
+				defer rasps.Body.Close()
 
-				for key, vals := range rsps.Header {
+				for key, vals := range rasps.Header {
 					w.Header().Set(key, strings.Join(vals, ";"))
 				}
-				w.WriteHeader(rsps.StatusCode)
-				io.Copy(w, rsps.Body)
+				w.WriteHeader(rasps.StatusCode)
+				_, _ = io.Copy(w, rasps.Body)
 			} else {
 				log.Error("proxy failed to get url", url, "with error", err)
 			}

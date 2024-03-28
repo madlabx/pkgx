@@ -119,14 +119,11 @@ func (agw *ApiGateway) configEcho() {
 	e.Use(LoggerWithConfig(LoggerConfig{
 		OutBodyFilter: func(c echo.Context) bool {
 			//文件上传下载不要打印
-			if c.Request().Method == http.MethodPost {
-				return true
-			}
+			return c.Request().Method == http.MethodPost
 			//if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
 			//	strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
 			//	return true
 			//}
-			return false
 		},
 		Format:           agw.LogConf.ContentFormat,
 		CustomTimeFormat: "2006/01/02 15:04:05.000",

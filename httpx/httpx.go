@@ -3,7 +3,7 @@ package httpx
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -87,12 +87,12 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 	}
 	defer func() {
 		if rsp != nil {
-			rsp.Body.Close()
+			_ = rsp.Body.Close()
 		}
 	}()
 
 	if rsp.StatusCode != http.StatusOK && rsp.StatusCode != http.StatusCreated {
-		body, err := ioutil.ReadAll(rsp.Body)
+		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
 			return nil, nil, err
@@ -102,7 +102,7 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 	}
 
 	if wantBody {
-		body, err := ioutil.ReadAll(rsp.Body)
+		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, %v", err.Error())
 			return nil, nil, err
@@ -113,11 +113,11 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 	return rsp, nil, err
 }
 
-func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody bool) (*http.Response, []byte, error) {
+func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody bool) (*http.Response, []byte, error) {
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}
-	req, err := http.NewRequest(method, requrl, bytes.NewReader(bodyBytes))
+	req, err := http.NewRequest(method, reqUrl, bytes.NewReader(bodyBytes))
 
 	if err != nil {
 		log.Errorf("failed to build request, err:%#v", err.Error())
@@ -134,12 +134,12 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 	}
 	defer func() {
 		if rsp != nil {
-			rsp.Body.Close()
+			_ = rsp.Body.Close()
 		}
 	}()
 
 	if rsp.StatusCode != http.StatusOK && rsp.StatusCode != http.StatusCreated {
-		body, err := ioutil.ReadAll(rsp.Body)
+		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
 			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
@@ -165,7 +165,7 @@ func requestBytesForBodyNormal(method, requrl string, bodyBytes []byte, wantBody
 	}
 
 	if wantBody {
-		body, err := ioutil.ReadAll(rsp.Body)
+		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, %v", err.Error())
 			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")

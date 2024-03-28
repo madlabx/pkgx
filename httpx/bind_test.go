@@ -34,9 +34,6 @@ type handleFunc func() echo.Context
 
 func TestBindAndValidate(t *testing.T) {
 	// Define our test cases
-	const (
-		getInput, doAssert = 1, 2
-	)
 	mockRequest := func(method, uri string, body io.Reader) handleFunc {
 		return func() echo.Context {
 			e := echo.New()
@@ -87,7 +84,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(uint64(2), parsed.(*inputStruct).Bandwidth)
 			},
 
-			expectedError: errors.New("missing query paramm, name:bandwidth, path:.Bandwidth"),
+			expectedError: errors.New("missing param Bandwidth"),
 		},
 
 		{
@@ -123,7 +120,28 @@ func TestBindAndValidate(t *testing.T) {
 				return as(uint64(0), parsed.(*inputStruct).Bandwidth)
 			},
 
-			expectedError: nil,
+			expectedError: errors.New("missing param Bandwidth"),
+		},
+
+		{
+			testName:     "MissingMustParamInDeepStruct",
+			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Bandwidth":1}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_must:"true" hx_range:"0-10"`
+					Quality   struct {
+						Level int `hx_must:"true"`
+					}
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(uint64(0), parsed.(*inputStruct).Bandwidth)
+			},
+
+			expectedError: errors.New("missing param Quality.Level"),
 		},
 		// Add more test cases as needed.
 	}
