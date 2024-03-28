@@ -28,6 +28,11 @@ var (
 	tagHttpXFieldRange   = "hx_range"
 )
 
+const (
+	ConstHxPlaceBody  = "body"
+	ConstHxPlaceQuery = "query"
+)
+
 type httpXTag struct {
 	place        string
 	name         string
@@ -207,25 +212,25 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 		}
 
 		switch ht.place {
-		case "query":
+		case ConstHxPlaceQuery:
 			value = c.QueryParam(name)
 			if value == "" {
 				value = c.QueryParam(strings.ToLower(name))
 			}
 
-			if ht.must && value == "" {
-				return errors.Errorf("missing query param %v", name)
-			}
-		case "", "body":
+			//if ht.must && value == "" {
+			//	return errors.Errorf("missing query param %v", name)
+			//}
+		case "", ConstHxPlaceBody:
 			if v.IsValid() && v.CanInterface() {
 				value = fmt.Sprintf("%v", v.Interface())
 			}
 
-			if ht.must && value == "" {
-				return errors.Errorf("missing body paramm %v", newPaths)
-			}
+			//if ht.must && value == "" {
+			//	return errors.Errorf("missing body paramm %v", newPaths)
+			//}
 		default:
-			return errors.Errorf("invalid "+tagHttpXFieldPlace+" tag: %v, path:%v", ht.place, newPaths)
+			return errors.Errorf("invalid "+tagHttpXFieldPlace+" tag %v, path:%v", ht.place, newPaths)
 		}
 
 		if value == "" {
@@ -244,7 +249,7 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 					}
 				}
 				if !validValue {
-					return errors.Errorf("invalid value:%s for field %s, must be one of %v, path:%v",
+					return errors.Errorf("invalid value \"%s\" for field %s, must be one of %v, path:%v",
 						value, name, allowedValues, newPaths)
 				}
 			}
@@ -252,13 +257,13 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 		case reflect.Bool:
 			_, err := strconv.ParseBool(value)
 			if err != nil {
-				return errors.Errorf("invalid value:%s for field %s, path:%v", value, name, newPaths)
+				return errors.Errorf("invalid value \"%s\" for field %s, path:%v", value, name, newPaths)
 			}
 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			fieldValue, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be an integer, path:%v", value, name, newPaths)
+				return errors.Errorf("invalid value \"%v\" for field %s, should be an integer, path:%v", value, name, newPaths)
 			}
 
 			if ht.valueRange != "" {
@@ -269,7 +274,7 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v", ht.valueRange, newPaths)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v",
+					return errors.Errorf("invalid value \"%s\" for field %s, must be between %d and %d, path:%v",
 						value, name, minVal, maxVal, newPaths)
 				}
 			}
@@ -277,7 +282,7 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			fieldValue, err := strconv.ParseUint(value, 10, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be an unsigned integer, path:%v",
+				return errors.Errorf("invalid value \"%v\" for field %s, should be an unsigned integer, path:%v",
 					value, name, newPaths)
 			}
 			if ht.valueRange != "" {
@@ -291,14 +296,14 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v", ht.valueRange, newPaths)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%s for field %s, must be between %d and %d, path:%v", value, name, minVal, maxVal, newPaths)
+					return errors.Errorf("invalid value \"%s\" for field %s, must be between %d and %d, path:%v", value, name, minVal, maxVal, newPaths)
 				}
 			}
 
 		case reflect.Float32, reflect.Float64:
 			fieldValue, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return errors.Errorf("invalid value:%v for field %s, should be a float, path:%v",
+				return errors.Errorf("invalid value \"%v\" for field %s, should be a float, path:%v",
 					value, name, newPaths)
 			}
 			if ht.valueRange != "" {
@@ -313,7 +318,7 @@ func validate(c echo.Context, vs reflect.Value, paths ...string) error {
 						ht.valueRange, field.Name, newPaths)
 				}
 				if fieldValue < minVal || fieldValue > maxVal {
-					return errors.Errorf("invalid value:%v for field %v, must be between %v and %v, path:%v",
+					return errors.Errorf("invalid value \"%v\" for field %v, must be between %v and %v, path:%v",
 						value, name, minVal, maxVal, newPaths)
 				}
 			}
@@ -411,33 +416,39 @@ func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, input any, paths
 		}
 
 		if hxTags.must {
-			if !hp.bodyParsed {
-				hp.bodyParsed = true
-				if c.Request().ContentLength > 0 &&
-					strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
-					// Request
-					var reqBody []byte
-					if c.Request().Body != nil { // Read
-						reqBody, _ = io.ReadAll(c.Request().Body)
-					}
-					c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
-					if err = json.Unmarshal(reqBody, &hp.bodyMap); err != nil {
-						return errors.Wrap(err)
-					}
-				}
-			}
-
-			if !isMapValueExist(hp.bodyMap, newPaths...) {
+			switch hxTags.place {
+			case ConstHxPlaceQuery:
 				//check in query param
 				fieldName := field.Name
 				if len(hxTags.name) > 0 {
 					fieldName = hxTags.name
 				}
 				if !hp.existInQueryParam(fieldName) {
-					return errors.Errorf("missing param %s", strings.Join(newPaths, "."))
+					return errors.Errorf("missing query parameter %s", strings.Join(newPaths, "."))
 				}
-			}
 
+			case "", ConstHxPlaceBody:
+				if !hp.bodyParsed {
+					hp.bodyParsed = true
+					if c.Request().ContentLength > 0 &&
+						strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
+						// Request
+						var reqBody []byte
+						if c.Request().Body != nil { // Read
+							reqBody, _ = io.ReadAll(c.Request().Body)
+						}
+						c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
+						if err = json.Unmarshal(reqBody, &hp.bodyMap); err != nil {
+							return errors.Wrap(err)
+						}
+					}
+				}
+
+				if !isMapValueExist(hp.bodyMap, newPaths...) {
+					return errors.Errorf("missing body parameter %s", strings.Join(newPaths, "."))
+				}
+
+			}
 		}
 	}
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	labstacklog "github.com/labstack/gommon/log"
 	"github.com/madlabx/pkgx/log"
 	"github.com/sirupsen/logrus"
 )
@@ -115,6 +116,15 @@ func (agw *ApiGateway) configEcho() {
 	)
 
 	e.Logger.SetOutput(log.StandardLogger().Out)
+	level, _ := logrus.ParseLevel(agw.LogConf.Level)
+	switch {
+	case level <= logrus.ErrorLevel:
+		e.Logger.SetLevel(labstacklog.ERROR)
+	case level == logrus.WarnLevel:
+		e.Logger.SetLevel(labstacklog.WARN)
+	default:
+		e.Logger.SetLevel(labstacklog.INFO)
+	}
 
 	e.Use(LoggerWithConfig(LoggerConfig{
 		OutBodyFilter: func(c echo.Context) bool {

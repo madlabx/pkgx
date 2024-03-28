@@ -3,7 +3,9 @@ package httpx
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/madlabx/pkgx/errors"
 
@@ -128,15 +130,23 @@ func ErrorResp(status, code int, err error) *JsonResponse {
 		}
 	}
 }
+func ServeContent(w http.ResponseWriter, req *http.Request, name string, modtime time.Time, content io.ReadSeeker) {
+	rid := handleNewRequestId()
+	w.Header().Set(echo.HeaderXRequestID, rid)
+	http.ServeContent(w, req, name, modtime, content)
+}
 
 func SendResp(c echo.Context, resp error) error {
+	if c.Response().Committed {
+		return resp
+	}
 
+	rid := handleNewRequestId()
+	c.Response().Header().Set(echo.HeaderXRequestID, rid)
 	if resp == nil {
 		return c.NoContent(http.StatusOK)
 	}
 
-	rid := handleNewRequestId()
-	c.Response().Header().Set("X-Onething-Pid", rid)
 	var e *JsonResponse
 	switch {
 	case errors.As(resp, &e):

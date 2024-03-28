@@ -138,16 +138,17 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 				reqBody, _ = io.ReadAll(c.Request().Body)
 			}
 			c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
-
+			bytesIn = min(bytesIn, int64(len(reqBody)))
 			return fmt.Sprintf("in[%v]:%v", bytesIn, string(reqBody[:bytesIn]))
 		}
 		return fmt.Sprintf("in[%v]", bytesIn)
 	}
 
-	loggingResponseBody := func(c echo.Context, bytesOut int64, respBody []byte) string {
-		if bytesOut > 0 && bytesOut <= config.bodyBufferSize &&
+	loggingResponseBody := func(c echo.Context, doPrintBodyOut bool, bytesOut int64, respBody []byte) string {
+		if doPrintBodyOut && bytesOut > 0 && bytesOut <= config.bodyBufferSize &&
 			isPrintableTextContent(c.Response().Header().Get(echo.HeaderContentType)) {
 			//skip "\n"
+			bytesOut = min(bytesOut, int64(len(respBody)))
 			bytesOut = max(0, bytesOut-1)
 			return fmt.Sprintf("out[%v]:%v", bytesOut, string(respBody[:bytesOut]))
 		}
@@ -255,9 +256,7 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 					bytesIn, _ := strconv.Atoi(cl)
 					return buf.WriteString(loggingRequestBody(c, int64(bytesIn)))
 				case "body_out":
-					if doPrintBodyOut {
-						return buf.WriteString(loggingResponseBody(c, res.Size, respBody.Bytes()))
-					}
+					return buf.WriteString(loggingResponseBody(c, doPrintBodyOut, res.Size, respBody.Bytes()))
 				default:
 					switch {
 					case strings.HasPrefix(tag, "header_in:"):
