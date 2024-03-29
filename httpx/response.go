@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/madlabx/pkgx/errors"
@@ -28,8 +29,11 @@ func (e *JsonResponse) String() string {
 }
 
 func (e *JsonResponse) Error() string {
-	jsonString, _ := json.Marshal(e)
-	return string(jsonString)
+	if e.err != nil {
+		return e.err.Error()
+	}
+
+	return ""
 }
 
 func (e *JsonResponse) IsNoContent() bool {
@@ -101,7 +105,6 @@ func ErrStrResp(status, code int, format string, a ...any) *JsonResponse {
 }
 
 func ErrorResp(status, code int, err error) *JsonResponse {
-
 	var (
 		msgPtr  *string
 		e       *JsonResponse
@@ -130,13 +133,23 @@ func ErrorResp(status, code int, err error) *JsonResponse {
 		}
 	}
 }
-func ServeContent(w http.ResponseWriter, req *http.Request, name string, modtime time.Time, content io.ReadSeeker) {
+
+func newEtag(modTime time.Time, length int64) string {
+	timestampHex := strconv.FormatInt(modTime.Unix(), 16)
+	// 将长度转换为16进制
+	lengthHex := strconv.FormatInt(length, 16)
+	// 将两部分用'-'连接
+	return timestampHex + "-" + lengthHex
+}
+
+func ServeContent(w http.ResponseWriter, req *http.Request, name string, modtime time.Time, length int64, content io.ReadSeeker) {
 	rid := handleNewRequestId()
 	w.Header().Set(echo.HeaderXRequestID, rid)
+	w.Header().Set("Etag", newEtag(modtime, length))
 	http.ServeContent(w, req, name, modtime, content)
 }
 
-func SendResp(c echo.Context, resp error) error {
+func SendResp(c echo.Context, resp error) (err error) {
 	if c.Response().Committed {
 		return resp
 	}
@@ -144,26 +157,35 @@ func SendResp(c echo.Context, resp error) error {
 	rid := handleNewRequestId()
 	c.Response().Header().Set(echo.HeaderXRequestID, rid)
 	if resp == nil {
-		return c.NoContent(http.StatusOK)
+		err = c.NoContent(http.StatusOK)
+	} else {
+
+		var e *JsonResponse
+		switch {
+		case errors.As(resp, &e):
+			if e.IsNoContent() {
+				err = c.NoContent(e.Status)
+			} else {
+
+				if e.RequestId == nil {
+					e.RequestId = &rid
+				}
+				err = c.JSON(e.Status, e)
+			}
+		default:
+			err = c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"RequestId": rid,
+				"CodeInt":   handleGetECodeInternalError(),
+				"Code":      handleECodeToStr(handleGetECodeInternalError()),
+				"Message":   resp.Error(),
+			})
+		}
 	}
 
-	var e *JsonResponse
-	switch {
-	case errors.As(resp, &e):
-		if e.IsNoContent() {
-			return c.NoContent(e.Status)
-		}
-
-		if e.RequestId == nil {
-			e.RequestId = &rid
-		}
-		return c.JSON(e.Status, e)
-	default:
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"RequestId": rid,
-			"CodeInt":   handleGetECodeInternalError(),
-			"Code":      handleECodeToStr(handleGetECodeInternalError()),
-			"Message":   resp.Error(),
-		})
-	}
+	//if err != nil {
+	//	return err
+	//} else {
+	//	return resp
+	//}
+	return err
 }

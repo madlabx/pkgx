@@ -3,7 +3,6 @@ package httpx
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -129,11 +128,12 @@ func (agw *ApiGateway) configEcho() {
 	e.Use(LoggerWithConfig(LoggerConfig{
 		OutBodyFilter: func(c echo.Context) bool {
 			//文件上传下载不要打印
-			return c.Request().Method == http.MethodPost
+			//return c.Request().Method == http.MethodPost
 			//if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
 			//	strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
 			//	return true
 			//}
+			return true
 		},
 		Format:           agw.LogConf.ContentFormat,
 		CustomTimeFormat: "2006/01/02 15:04:05.000",
