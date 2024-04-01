@@ -240,3 +240,7 @@ func Fatalln(args ...interface{}) {
 func Eventf(format string, args ...interface{}) {
 	logrus.Infof("--EVENT-- "+format, args...)
 }
+
+func FatalIf(args ...interface{}) {
+	logrus.Fatal(args...)
+}
