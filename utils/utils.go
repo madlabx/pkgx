@@ -123,21 +123,30 @@ var defaultLetters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 
 var once sync.Once
 
+func GenerateKey() ([]byte, error) {
+	b := make([]byte, 64) //nolint:gomnd
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 func RandomString(size int) string {
-	var container string
-	var str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
 	once.Do(func() {
 		rand.Seed(time.Now().Unix())
 	})
 
-	length := len(str)
+	b := make([]byte, size)
 	//	bigInt := big.NewInt(int64(length))
 	for i := 0; i < size; i++ {
-		randomInt := rand.Intn(length)
-		container += string(str[randomInt])
+		b[i] = letterBytes[rand.Intn(size)]
 	}
-	return container
+	return string(b)
 }
 
 func ReadCsvFile(fileName string, data interface{}, headerRows int) error {
@@ -422,4 +431,47 @@ func InRange[T comparable](x T, ss ...T) bool {
 		}
 	}
 	return false
+}
+
+
+func convertStringToFieldType(fieldType reflect.Kind, filterValue string) (interface{}, error) {
+	switch fieldType {
+	case reflect.String:
+		return filterValue, nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		intValue, err := strconv.ParseInt(filterValue, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return intValue, nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		uintValue, err := strconv.ParseUint(filterValue, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return uintValue, nil
+	default:
+		return nil, fmt.Errorf("unsupported type: %v", fieldType)
+	}
+}
+
+func ConvertFilterValueToFieldType(obj interface{}, filterField string, filterValue string) ([]interface{}, error) {
+	v := reflect.ValueOf(obj)
+	field := v.FieldByName(filterField)
+	if !field.IsValid() {
+		return nil, fmt.Errorf("field %s is invalid", filterField)
+	}
+
+	fieldType := field.Kind()
+	vs := strings.Split(filterValue, ",")
+	convertedValues := make([]interface{}, len(vs))
+	for i, v := range vs {
+		//TODO is it necessary to convert??
+		convertedValue, err := convertStringToFieldType(fieldType, v)
+		if err != nil {
+			return nil, err
+		}
+		convertedValues[i] = convertedValue
+	}
+	return convertedValues, nil
 }
