@@ -84,7 +84,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(uint64(2), parsed.(*inputStruct).Bandwidth)
 			},
 
-			expectedError: errors.New("missing param Bandwidth"),
+			expectedError: errors.New("missing query parameter Bandwidth"),
 		},
 
 		{
@@ -120,18 +120,15 @@ func TestBindAndValidate(t *testing.T) {
 				return as(uint64(0), parsed.(*inputStruct).Bandwidth)
 			},
 
-			expectedError: errors.New("missing param Bandwidth"),
+			expectedError: errors.New("missing parameter Bandwidth"),
 		},
 
 		{
-			testName:     "MissingMustParamInDeepStruct",
-			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Bandwidth":1}`)),
+			testName:     "BodyIntLostMust",
+			buildContext: mockRequest(http.MethodGet, "/", nil),
 			structFunc: func(parsed any) any {
 				type inputStruct struct {
 					Bandwidth uint64 `hx_must:"true" hx_range:"0-10"`
-					Quality   struct {
-						Level int `hx_must:"true"`
-					}
 				}
 
 				if parsed == nil {
@@ -141,7 +138,49 @@ func TestBindAndValidate(t *testing.T) {
 				return as(uint64(0), parsed.(*inputStruct).Bandwidth)
 			},
 
-			expectedError: errors.New("missing param Quality.Level"),
+			expectedError: errors.New("missing parameter Bandwidth"),
+		},
+
+		{
+			testName:     "PatchSetBodyValues",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2", strings.NewReader(`{"Bandwidth":1, "Quality":{"Level":1.0}}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_must:"true" hx_range:"0-10"`
+					Quality   struct {
+						Level float64 `hx_must:"true"`
+					}
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(1.0, parsed.(*inputStruct).Quality.Level)
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
+		},
+
+		{
+			testName:     "PatchSetQueryValues",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", nil),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth uint64 `hx_must:"false" hx_range:"0-10"`
+					Quality   struct {
+						Level float64 `hx_must:"true"`
+					}
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(2.1, parsed.(*inputStruct).Quality.Level)
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
 		},
 		// Add more test cases as needed.
 	}

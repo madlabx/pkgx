@@ -17,7 +17,7 @@ var (
 	tagViperXFieldDefault      = "vx_default"
 	tagViperXFieldDescription  = "vx_desc"
 	tagViperXFieldShort        = "vx_short"
-	tagViperXFieldRange        = "vx_range"
+	//tagViperXFieldRange        = "vx_range"
 )
 
 func getMapStructureTagName(opts ...viper.DecoderConfigOption) string {

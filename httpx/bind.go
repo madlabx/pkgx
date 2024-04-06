@@ -29,8 +29,9 @@ var (
 )
 
 const (
-	ConstHxPlaceBody  = "body"
-	ConstHxPlaceQuery = "query"
+	ConstHxPlaceBody   = "body"
+	ConstHxPlaceQuery  = "query"
+	ConstHxPlaceEither = ""
 )
 
 type httpXTag struct {
@@ -39,6 +40,22 @@ type httpXTag struct {
 	must         bool
 	defaultValue string
 	valueRange   string
+}
+
+func (ht *httpXTag) realName(name string) string {
+	if ht.name == "" {
+		return name
+	} else {
+		return ht.name
+	}
+}
+
+func (ht *httpXTag) inQuery() bool {
+	return ht.place == ConstHxPlaceQuery || ht.place == ConstHxPlaceEither
+}
+
+func (ht *httpXTag) inBody() bool {
+	return ht.place == ConstHxPlaceBody || ht.place == ConstHxPlaceEither
 }
 
 func (ht *httpXTag) isEmpty() bool {
@@ -152,10 +169,12 @@ func BindAndValidate(c echo.Context, i any) error {
 	if err != nil {
 		return err
 	}
-
-	if err = c.Bind(i); err != nil && !strings.Contains(err.Error(), "Request body can't be empty") {
-		return err
-	}
+	//
+	//if err = c.Bind(i); err != nil &&
+	//	!strings.Contains(err.Error(), "Request body can't be empty") &&
+	//	!errors.Is(err, echo.ErrUnsupportedMediaType) {
+	//	return err
+	//}
 
 	return validate(c, reflect.ValueOf(i), []string{}...)
 }
@@ -409,45 +428,53 @@ func (hp *hxParser) setHttpXDefaultAndCheckMust(c echo.Context, input any, paths
 			return err
 		}
 
-		if hxTags.defaultValue != "" && fieldValue.CanSet() {
-			if err = setWithProperType(field.Type, hxTags.defaultValue, fieldValue.Addr()); err != nil {
-				return errors.Wrapf(err, "path:%v", newPaths)
-			}
+		var (
+			value string
+			qv    string
+			bv    any
+		)
+		if hxTags.inQuery() {
+			qv = c.QueryParam(hxTags.realName(field.Name))
 		}
 
-		if hxTags.must {
-			switch hxTags.place {
-			case ConstHxPlaceQuery:
-				//check in query param
-				fieldName := field.Name
-				if len(hxTags.name) > 0 {
-					fieldName = hxTags.name
-				}
-				if !hp.existInQueryParam(fieldName) {
-					return errors.Errorf("missing query parameter %s", strings.Join(newPaths, "."))
-				}
-
-			case "", ConstHxPlaceBody:
-				if !hp.bodyParsed {
-					hp.bodyParsed = true
-					if c.Request().ContentLength > 0 &&
-						strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
-						// Request
-						var reqBody []byte
-						if c.Request().Body != nil { // Read
-							reqBody, _ = io.ReadAll(c.Request().Body)
-						}
-						c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
-						if err = json.Unmarshal(reqBody, &hp.bodyMap); err != nil {
-							return errors.Wrap(err)
-						}
+		if hxTags.inBody() {
+			if !hp.bodyParsed {
+				hp.bodyParsed = true
+				if c.Request().ContentLength > 0 &&
+					strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
+					// Request
+					var reqBody []byte
+					if c.Request().Body != nil { // Read
+						reqBody, _ = io.ReadAll(c.Request().Body)
+					}
+					c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
+					if err = json.Unmarshal(reqBody, &hp.bodyMap); err != nil {
+						return errors.Wrap(err)
 					}
 				}
+			}
+			bv, _ = getMapValue(hp.bodyMap, newPaths...)
+		}
 
-				if !isMapValueExist(hp.bodyMap, newPaths...) {
-					return errors.Errorf("missing body parameter %s", strings.Join(newPaths, "."))
+		switch {
+		case bv != nil:
+			value = fmt.Sprintf("%v", bv)
+		case qv != "":
+			value = qv
+		default:
+			if hxTags.must {
+				if hxTags.place != "" {
+					return errors.Errorf("missing %s parameter %s", hxTags.place, strings.Join(newPaths, "."))
+				} else {
+					return errors.Errorf("missing parameter %s", strings.Join(newPaths, "."))
 				}
+			}
+			value = hxTags.defaultValue
+		}
 
+		if value != "" && fieldValue.CanSet() {
+			if err = setWithProperType(field.Type, value, fieldValue.Addr()); err != nil {
+				return errors.Wrapf(err, "path:%v", newPaths)
 			}
 		}
 	}
@@ -473,6 +500,27 @@ func (hp *hxParser) existInQueryParam(key string) bool {
 	}
 
 	return false
+}
+
+func getMapValue(data map[string]any, path ...string) (any, bool) {
+	if len(path) == 0 {
+		return "", false
+	}
+
+	// 递归遍历map的路径
+	cursor := data
+	for _, key := range path {
+		value, ok := cursor[key]
+		if !ok {
+			return nil, false
+		}
+		cursor, ok = value.(map[string]any)
+		if !ok {
+			return value, true
+		}
+	}
+
+	return nil, false
 }
 
 func isMapValueExist(data map[string]interface{}, path ...string) bool {
@@ -539,6 +587,23 @@ func setFloatField(value string, bitSize int, field reflect.Value) error {
 		field.SetFloat(floatVal)
 	}
 	return err
+}
+
+func setValue(t reflect.Type, val reflect.Value, v reflect.Value) error {
+	if v.Elem().Kind() == reflect.Invalid {
+		v.Set(reflect.New(t))
+	}
+
+	structField := v.Elem()
+
+	//TODO value time.Time
+	switch t.Kind() {
+	case reflect.Ptr:
+		return setValue(t.Elem(), val, structField)
+	default:
+		structField.Set(reflect.ValueOf(val))
+	}
+	return nil
 }
 
 // setWithProperType sets a struct field with a value, ensuring it is of the proper type.
