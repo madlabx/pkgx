@@ -170,24 +170,17 @@ func BindAndValidate(c echo.Context, i any) error {
 		if c.Request().Body != nil { // Read
 			reqBody, _ = io.ReadAll(c.Request().Body)
 		}
+
 		c.Request().Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
-		if err := json.Unmarshal(reqBody, &hp.bodyMap); err != nil {
+
+		decoder := json.NewDecoder(bytes.NewBuffer(reqBody))
+		decoder.UseNumber()
+		if err := decoder.Decode(&hp.bodyMap); err != nil {
 			return errors.Wrap(err)
 		}
 	}
 
 	return hp.bindAndValidate(i, hp.bodyMap, []string{}...)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if err = c.Bind(i); err != nil &&
-	//	!strings.Contains(err.Error(), "Request body can't be empty") &&
-	//	!errors.Is(err, echo.ErrUnsupportedMediaType) {
-	//	return err
-	//}
-
-	//return validateStruct(c, reflect.ValueOf(i), []string{}...)
 }
 
 // validateStruct recursively validates each field of a struct based on the `httpXTag`.

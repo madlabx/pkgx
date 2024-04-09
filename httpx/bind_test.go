@@ -220,10 +220,27 @@ func TestBindAndValidate(t *testing.T) {
 			},
 
 			expectedError: errors.New("missing parameter Quality.Level"),
-		}, {
+		},
+		{
+			testName:     "TestLongInt",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Level":1712652096}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Level int `hx_must:"false"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				return as(1712652096, parsed.(*inputStruct).Level)
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
+		},
+		{
 			testName: "TestStructArray",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Dirs":[
-    {"Name":"test/wefwe"},
+    {"Name":"./jonathantest","CreateTime":1712652096},
     {"Name": "123dir"}
     ]
     }`)),
@@ -243,7 +260,7 @@ func TestBindAndValidate(t *testing.T) {
 				if parsed == nil {
 					return &inputStruct{}
 				}
-				return as([]NewStruct{{Name: "test/wefwe"}, {Name: "123dir"}}, parsed.(*inputStruct).Dirs)
+				return as([]NewStruct{{Name: "./jonathantest", CreateTime: 1712652096}, {Name: "123dir"}}, parsed.(*inputStruct).Dirs)
 			},
 
 			expectedError: errors.New("missing parameter Quality.Level"),
