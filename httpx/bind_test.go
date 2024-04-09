@@ -7,10 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -44,7 +43,7 @@ func TestBindAndValidate(t *testing.T) {
 			return c
 		}
 	}
-	as := func(expect, output any) bool {
+	as := func(expect, output any) any {
 		return assert.Equal(t, expect, output)
 	}
 	testCases := []struct {
@@ -183,7 +182,7 @@ func TestBindAndValidate(t *testing.T) {
 			expectedError: errors.New("missing parameter Quality.Level"),
 		},
 		{
-			testName:     "TestStringArray",
+			testName:     "TestUintArray",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Bandwidths":[1,2,3,4], "Quality":{"Level":1.0}}`)),
 			structFunc: func(parsed any) any {
 				type inputStruct struct {
@@ -202,10 +201,56 @@ func TestBindAndValidate(t *testing.T) {
 			},
 
 			expectedError: errors.New("missing parameter Quality.Level"),
+		}, {
+			testName:     "TestStringArray",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Dirs":["test/wefwe", "123dir"]}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					//Bandwidth []uint64 `hx_must:"false" hx_range:"0-10"`
+					Dirs    []string `hx_must:"false"`
+					Quality struct {
+						Level float64 `hx_must:"false"`
+					}
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				return as(parsed.(*inputStruct).Dirs, []string{"test/wefwe", "123dir"})
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
+		}, {
+			testName: "TestStructArray",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Dirs":[
+    {"Name":"test/wefwe"},
+    {"Name": "123dir"}
+    ]
+    }`)),
+			structFunc: func(parsed any) any {
+				type NewStruct struct {
+					Name       string
+					CreateTime int64
+				}
+				type inputStruct struct {
+					//Bandwidth []uint64 `hx_must:"false" hx_range:"0-10"`
+					Dirs    []NewStruct `hx_must:"false"`
+					Quality struct {
+						Level float64 `hx_must:"false"`
+					}
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				return as([]NewStruct{{Name: "test/wefwe"}, {Name: "123dir"}}, parsed.(*inputStruct).Dirs)
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
 		},
 		{
-			testName:     "PatchSetQueryValues",
-			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", nil),
+			testName:     "TestStringArray",
+			buildContext: mockRequest(http.MethodPost, "/we?Level=2.1", nil),
 			structFunc: func(parsed any) any {
 				type inputStruct struct {
 					Bandwidth uint64 `hx_must:"false" hx_range:"0-10"`
