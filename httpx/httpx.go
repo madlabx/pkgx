@@ -14,7 +14,6 @@ import (
 )
 
 func GetRealIp(req *http.Request) string {
-
 	hip := req.Header.Get("X-Forwarded-For")
 	if hip != "" {
 		idx := strings.Index(hip, ",")

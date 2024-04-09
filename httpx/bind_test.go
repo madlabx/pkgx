@@ -161,7 +161,48 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: errors.New("missing parameter Quality.Level"),
 		},
+		{
+			testName:     "TestDeepPtrMember",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Bandwidths":[1,2,3,4], "Quality":{"Level":1.0}}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					//Bandwidth []uint64 `hx_must:"false" hx_range:"0-10"`
+					Bandwidths []uint64 `hx_must:"false" hx_range:"0-10"`
+					Quality    struct {
+						Level *float64 `hx_must:"false"`
+					}
+				}
 
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				//as(parsed.(*inputStruct).Bandwidths, []uint64{1, 2, 3, 4})
+				return as(1.0, *(parsed.(*inputStruct).Quality.Level))
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
+		},
+		{
+			testName:     "TestStringArray",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Bandwidths":[1,2,3,4], "Quality":{"Level":1.0}}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					//Bandwidth []uint64 `hx_must:"false" hx_range:"0-10"`
+					Bandwidths []uint64 `hx_must:"false" hx_range:"0-10"`
+					Quality    struct {
+						Level float64 `hx_must:"false"`
+					}
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				as(parsed.(*inputStruct).Bandwidths, []uint64{1, 2, 3, 4})
+				return as(1.0, parsed.(*inputStruct).Quality.Level)
+			},
+
+			expectedError: errors.New("missing parameter Quality.Level"),
+		},
 		{
 			testName:     "PatchSetQueryValues",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", nil),
