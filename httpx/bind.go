@@ -62,23 +62,6 @@ func (ht *httpXTag) isEmpty() bool {
 		ht.valueRange == ""
 }
 
-func parseHttpXDefault(t reflect.StructTag, path string) (string, error) {
-	tags := t.Get(tagHttpX)
-
-	//in case of having `hx_tag:";;;default_value;"``
-	if len(tags) > 0 {
-		tagList := strings.Split(tags, ";")
-		if len(tagList) != 5 {
-			return "", errors.Errorf("invalid "+tagHttpX+":'%v' which should have 5 fields, path:%v", tags, path)
-		}
-
-		return tagList[3], nil
-	}
-
-	//in case of having `hx_default:"default_value"`
-	return t.Get(tagHttpXFieldDefault), nil
-}
-
 func parseHttpXTag(t reflect.StructTag, paths ...string) (*httpXTag, error) {
 	var (
 		place, name, mustStr, defaultValue, valueRange string
@@ -183,201 +166,6 @@ func BindAndValidate(c echo.Context, i any) error {
 	return hp.bindAndValidate(i, hp.bodyMap, []string{}...)
 }
 
-// validateStruct recursively validates each field of a struct based on the `httpXTag`.
-func validateStruct(c echo.Context, vs reflect.Value, paths ...string) error {
-	t := vs.Type()
-	switch t.Kind() {
-	default:
-		return errors.Errorf("invalid type:%v, path:%s.%v", t.Kind(), paths, t.Name())
-	case reflect.Invalid:
-		return nil
-	case reflect.Pointer:
-		return validateStruct(c, vs.Elem(), paths...)
-	case reflect.Struct:
-		break
-	}
-
-	for index := 0; index < t.NumField(); index++ {
-		field := t.Field(index)
-		v := vs.Field(index)
-
-		fieldType := field.Type
-		if fieldType.Kind() == reflect.Ptr {
-			fieldType = fieldType.Elem()
-			v = v.Elem()
-		}
-
-		newPaths := append(paths, field.Name)
-		if field.Anonymous ||
-			(fieldType.Kind() == reflect.Struct && field.Type != reflect.TypeOf(time.Time{})) {
-			err := validateStruct(c, v, newPaths...)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		ht, err := parseHttpXTag(field.Tag, newPaths...)
-		if err != nil {
-			return errors.Wrap(err)
-		}
-
-		if ht.isEmpty() {
-			continue
-		}
-
-		//获取字段值
-		var value string
-
-		name := ht.name
-		if name == "" {
-			name = field.Name
-		}
-
-		switch ht.place {
-		case constHxQuery:
-			value = c.QueryParam(name)
-
-		case "", constHxBody:
-			if v.IsValid() {
-				value = fmt.Sprintf("%v", v)
-			}
-
-		default:
-			return errors.Errorf("invalid "+tagHttpXFieldPlace+" tag %v, path:%v", ht.place, newPaths)
-		}
-
-		if value == "" {
-			continue
-		}
-
-		return validateField(fieldType, field, ht, value, name, newPaths...)
-	}
-	return nil
-}
-
-func validateField(fieldType reflect.Type, field reflect.StructField, ht *httpXTag, value, name string, newPaths ...string) error {
-
-	switch fieldType.Kind() {
-	case reflect.String:
-		if ht.valueRange != "" {
-			allowedValues := strings.Split(ht.valueRange, ",")
-			validValue := false
-			for _, allowed := range allowedValues {
-				if value == allowed {
-					validValue = true
-					break
-				}
-			}
-			if !validValue {
-				return errors.Errorf("invalid value \"%s\" for field %s, must be one of %v, path:%v",
-					value, name, allowedValues, newPaths)
-			}
-		}
-
-	case reflect.Bool:
-		_, err := strconv.ParseBool(value)
-		if err != nil {
-			return errors.Errorf("invalid value \"%s\" for field %s, path:%v", value, name, newPaths)
-		}
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fieldValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return errors.Errorf("invalid value \"%v\" for field %s, should be an integer, path:%v", value, name, newPaths)
-		}
-
-		if ht.valueRange != "" {
-			rangeValues := strings.Split(ht.valueRange, "-")
-			minVal, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
-			maxVal, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
-			if e1 != nil || e2 != nil {
-				return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v", ht.valueRange, newPaths)
-			}
-			if fieldValue < minVal || fieldValue > maxVal {
-				return errors.Errorf("invalid value \"%s\" for field %s, must be between %d and %d, path:%v",
-					value, name, minVal, maxVal, newPaths)
-			}
-		}
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		fieldValue, err := strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return errors.Errorf("invalid value \"%v\" for field %s, should be an unsigned integer, path:%v",
-				value, name, newPaths)
-		}
-		if ht.valueRange != "" {
-			rangeValues := strings.Split(ht.valueRange, "-")
-			if len(rangeValues) != 2 {
-				return errors.Errorf("invalid "+tagHttpXFieldRange+":%s, path:%v", ht.valueRange, newPaths)
-			}
-			minVal, e1 := strconv.ParseUint(rangeValues[0], 10, 64)
-			maxVal, e2 := strconv.ParseUint(rangeValues[1], 10, 64)
-			if e1 != nil || e2 != nil {
-				return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v", ht.valueRange, newPaths)
-			}
-			if fieldValue < minVal || fieldValue > maxVal {
-				return errors.Errorf("invalid value \"%s\" for field %s, must be between %d and %d, path:%v", value, name, minVal, maxVal, newPaths)
-			}
-		}
-
-	case reflect.Float32, reflect.Float64:
-		fieldValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return errors.Errorf("invalid value \"%v\" for field %s, should be a float, path:%v",
-				value, name, newPaths)
-		}
-		if ht.valueRange != "" {
-			rangeValues := strings.Split(ht.valueRange, "-")
-			if len(rangeValues) != 2 {
-				return errors.Errorf("invalid value range:%s, path:%v", ht.valueRange, newPaths)
-			}
-			minVal, e1 := strconv.ParseFloat(rangeValues[0], 64)
-			maxVal, e2 := strconv.ParseFloat(rangeValues[1], 64)
-			if e1 != nil || e2 != nil {
-				return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, field %v, path:%v",
-					ht.valueRange, field.Name, newPaths)
-			}
-			if fieldValue < minVal || fieldValue > maxVal {
-				return errors.Errorf("invalid value \"%v\" for field %v, must be between %v and %v, path:%v",
-					value, name, minVal, maxVal, newPaths)
-			}
-		}
-
-	case reflect.Struct:
-		if field.Type.String() == "time.Time" {
-			layout := "2006-01-02T15:04:05"
-			timeValue, err := time.Parse(layout, value)
-			if err != nil {
-				return errors.Errorf("invalid time format for field %s, should be in YYYY-MM-DDTHH:MM:SS format, path:%v",
-					name, newPaths)
-			}
-
-			if ht.valueRange != "" {
-				rangeValues := strings.Split(ht.valueRange, "-")
-				minUnix, e1 := strconv.ParseInt(rangeValues[0], 10, 64)
-				maxUnix, e2 := strconv.ParseInt(rangeValues[1], 10, 64)
-				if e1 != nil || e2 != nil {
-					return errors.Errorf("invalid format for "+tagHttpXFieldRange+":%v, path:%v",
-						ht.valueRange, newPaths)
-				}
-
-				unixTime := timeValue.Unix()
-				if unixTime < minUnix || unixTime > maxUnix {
-					return errors.Errorf("%s is not within the allowed range for field %s, path:%v",
-						value, name, newPaths)
-				}
-			}
-		} else {
-			return errors.Errorf("unsupported struct field type:%v for field %s,  path:%v",
-				field.Type, name, newPaths)
-		}
-	default:
-		return errors.Errorf("unsupported field type:%v, path:%v", fieldType, newPaths)
-	}
-	return nil
-}
-
 func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...string) error {
 	v := reflect.ValueOf(input)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
@@ -403,6 +191,14 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 		fieldValue := v.Field(i)
 		if fieldValue.Kind() == reflect.Invalid {
 			fieldValue.Addr().Set(reflect.New(field.Type))
+		}
+
+		if field.Anonymous {
+			err := hp.bindAndValidate(fieldValue.Addr().Interface(), target, paths...)
+			if err != nil {
+				return err
+			}
+			continue
 		}
 
 		newPaths := append(paths, field.Name)

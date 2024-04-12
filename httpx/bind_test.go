@@ -121,7 +121,80 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: errors.New("missing parameter Bandwidth"),
 		},
+		{
+			testName:     "BodyAnonymousMember",
+			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec"}`)),
+			structFunc: func(parsed any) any {
 
+				type FilterStruct struct {
+					FilterField    string
+					FilterOperator string `hx_range:"eq,gt,lt,in" hx_default:"eq"`
+					FilterValue    string
+				}
+				type PageStruct struct {
+					PageNum  int
+					PageSize int
+					TotalNum int64
+				}
+				type SortStruct struct {
+					SortField string
+					SortOrder string
+				}
+				type inputStruct struct {
+					PageStruct
+					SortStruct
+					FilterStruct
+					Name    string `hx_must:"true"`
+					Recurse bool
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as("asec", parsed.(*inputStruct).SortOrder)
+			},
+
+			expectedError: errors.New("missing parameter Bandwidth"),
+		},
+
+		{
+			testName:     "BodyDeepAnonymousMember",
+			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec", "PageNum":2}`)),
+			structFunc: func(parsed any) any {
+
+				type FilterStruct struct {
+					FilterField    string
+					FilterOperator string `hx_range:"eq,gt,lt,in" hx_default:"eq"`
+					FilterValue    string
+				}
+				type PageStruct struct {
+					PageNum  int
+					PageSize int
+					TotalNum int64
+				}
+				type SortStruct struct {
+					SortField string
+					SortOrder string
+					PageStruct
+				}
+				type inputStruct struct {
+					//PageStruct
+					SortStruct
+					FilterStruct
+					Name    string `hx_must:"true"`
+					Recurse bool
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(2, parsed.(*inputStruct).PageNum)
+			},
+
+			expectedError: errors.New("missing parameter Bandwidth"),
+		},
 		{
 			testName:     "BodyIntLostMust",
 			buildContext: mockRequest(http.MethodGet, "/", nil),

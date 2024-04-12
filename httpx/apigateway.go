@@ -114,7 +114,7 @@ func (agw *ApiGateway) configEcho() {
 		e = agw.Echo
 	)
 
-	e.Logger.SetOutput(log.StandardLogger().Out)
+	e.Logger.SetOutput(agw.Logger.Out)
 	level, _ := logrus.ParseLevel(agw.LogConf.Level)
 	switch {
 	case level <= logrus.ErrorLevel:
