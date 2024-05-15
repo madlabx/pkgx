@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"errors"
 
 	"github.com/madlabx/pkgx/errno"
 	"github.com/madlabx/pkgx/log"
@@ -32,43 +33,90 @@ func GetRealIp(req *http.Request) string {
 	return ip
 }
 
-func HttpGetBody(url string, timeout int) (*http.Response, []byte, error) {
-	return requestBytesForBody("GET", url, nil, timeout, true)
+var defaultClient = &Client{cli: http.DefaultClient}
+
+func ResetDefaultClient(hc *Client) {
+	defaultClient = hc
 }
 
-func HttpGet(url string, timeout int) (*http.Response, error) {
-	return requestBytes("GET", url, nil, timeout)
+func HttpGetBody(url string) (*http.Response, []byte, error) {
+	return requestBytesForBody(defaultClient, "GET", url, nil, true)
 }
 
-func HttpPostBody(url string, body interface{}, timeout int) (*http.Response, []byte, error) {
+func HttpGet(url string) (*http.Response, error) {
+	return requestBytes(defaultClient, "GET", url, nil)
+}
+
+func HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
 		return nil, nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 	}
-
-	return requestBytesForBody("POST", url, b, timeout, true)
+	
+	return requestBytesForBody(defaultClient, "POST", url, b, true)
 }
 
-func HttpPost(url string, body interface{}, timeout int) (*http.Response, error) {
+type Client struct {
+	cli *http.Client
+}
+
+func (hc *Client) clone() *Client {
+	newRawClient := *hc.cli
+	return &Client{cli: &newRawClient}
+}
+
+func (hc *Client) HttpPost(url string, body interface{}) (*http.Response, error) {
+	return httpPostInternal(hc, url, body)
+}
+
+func (hc *Client) HttpGetBody(url string) (*http.Response, []byte, error) {
+	return requestBytesForBody(hc, "GET", url, nil, true)
+}
+
+func (hc *Client) HttpGet(url string) (*http.Response, error) {
+	return requestBytes(hc, "GET", url, nil)
+}
+
+func (hc *Client) WithTimeout(timeout int) *Client {
+	hc.cli.Timeout = time.Second * time.Duration(timeout)
+	return hc
+}
+
+func WithTimeout(timeout int) *Client {
+	return defaultClient.clone().WithTimeout(timeout)
+}
+
+func HttpPost(url string, body interface{}) (*http.Response, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
 		return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 	}
 
-	return requestBytes("POST", url, b, timeout)
+	return requestBytes(
+		defaultClient,
+		"POST",
+		url,
+		b)
 }
 
-func requestBytes(method, url string, bodyBytes []byte, timeout int) (*http.Response, error) {
-	resp, _, err := requestBytesForBody(method, url, bodyBytes, timeout, false)
+func httpPostInternal(cli *Client, url string, body interface{}) (*http.Response, error) {
+	b, err := json.Marshal(body)
+	if err != nil {
+		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
+		return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
+	}
+
+	return requestBytes(cli, "POST", url, b)
+}
+
+func requestBytes(cli *Client, method, url string, bodyBytes []byte) (*http.Response, error) {
+	resp, _, err := requestBytesForBody(cli, method, url, bodyBytes, false)
 	return resp, err
 }
 
-func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, wantBody bool) (*http.Response, []byte, error) {
-	client := &http.Client{
-		Timeout: time.Second * time.Duration(timeout),
-	}
+func requestBytesForBody(hc *Client, method, requrl string, bodyBytes []byte, wantBody bool) (*http.Response, []byte, error) {
 	req, err := http.NewRequest(method, requrl, bytes.NewReader(bodyBytes))
 
 	if err != nil {
@@ -79,7 +127,7 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Connection", "close")
-	rsp, err := client.Do(req)
+	rsp, err := hc.cli.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
 		return nil, nil, Wrap(err)
@@ -96,6 +144,8 @@ func requestBytesForBody(method, requrl string, bodyBytes []byte, timeout int, w
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
 			return nil, nil, err
 		}
+
+		err = errors.New(rsp.Status)
 
 		return rsp, body, err
 	}

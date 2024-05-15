@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -13,102 +14,14 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/errors"
-	"github.com/madlabx/pkgx/log"
 )
-
-var (
-	tagHttpX             = "hx_tag"
-	tagHttpXFieldPlace   = "hx_place"
-	tagHttpXFieldName    = "hx_query_name"
-	tagHttpXFieldMust    = "hx_must"
-	tagHttpXFieldDefault = "hx_default"
-	tagHttpXFieldRange   = "hx_range"
-)
-
-const (
-	constHxBody   = "body"
-	constHxQuery  = "query"
-	constHxEither = ""
-)
-
-type httpXTag struct {
-	place        string
-	name         string
-	must         bool
-	defaultValue string
-	valueRange   string
-}
-
-func (ht *httpXTag) realName(name string) string {
-	if ht.name == "" {
-		return name
-	} else {
-		return ht.name
-	}
-}
-
-func (ht *httpXTag) inQuery() bool {
-	return ht.place == constHxQuery || ht.place == constHxEither
-}
-
-func (ht *httpXTag) inBody() bool {
-	return ht.place == constHxBody || ht.place == constHxEither
-}
-
-func (ht *httpXTag) isEmpty() bool {
-	return ht.name == "" &&
-		!ht.must &&
-		ht.defaultValue == "" &&
-		ht.valueRange == ""
-}
-
-func parseHttpXTag(t reflect.StructTag, paths ...string) (*httpXTag, error) {
-	var (
-		place, name, mustStr, defaultValue, valueRange string
-		must                                           bool
-	)
-	tags := t.Get(tagHttpX)
-	if len(tags) > 0 {
-		tagList := strings.Split(tags, ";")
-		if len(tagList) != 5 {
-			return nil, errors.Errorf("invalid "+tagHttpX+":'%v' which should have 5 fields, path:%v", tags, paths)
-		}
-		place, name, mustStr, defaultValue, valueRange = tagList[0], tagList[1], tagList[2], tagList[3], tagList[4]
-	} else {
-		place, name, mustStr, defaultValue, valueRange =
-			t.Get(tagHttpXFieldPlace),
-			t.Get(tagHttpXFieldName),
-			t.Get(tagHttpXFieldMust),
-			t.Get(tagHttpXFieldDefault),
-			t.Get(tagHttpXFieldRange)
-	}
-
-	if strings.ToLower(mustStr) == "true" {
-		must = true
-	} else if strings.ToLower(mustStr) == "false" {
-		must = false
-	} else if len(mustStr) > 0 {
-		return nil, errors.Errorf("invalid must tag:%v", mustStr)
-	}
-
-	if must && len(defaultValue) > 0 {
-		log.Warn("should not define both of hx_must and hx_defaultValue")
-	}
-
-	return &httpXTag{
-		place:        place,
-		name:         name,
-		must:         must,
-		defaultValue: defaultValue,
-		valueRange:   valueRange,
-	}, nil
-}
 
 type hxParser struct {
 	bodyMap     map[string]any
 	bodyParsed  bool
 	path        []string
 	queryParams url.Values
+	headers     http.Header
 }
 
 /*
@@ -145,6 +58,7 @@ func BindAndValidate(c echo.Context, i any) error {
 	hp := new(hxParser)
 	hp.bodyMap = make(map[string]any)
 	hp.queryParams = c.QueryParams()
+	hp.headers = c.Request().Header
 
 	if c.Request().ContentLength > 0 &&
 		strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
@@ -250,21 +164,23 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 						continue
 					}
 				}
-
 				continue
 
 			}
+		default:
+			//do nothing
 		}
 
-		hxTags, err := parseHttpXTag(field.Tag, newPaths...)
+		hxTags, err := parseHxTag(field.Tag, newPaths...)
 		if err != nil {
 			return err
 		}
 
 		var (
 			value, bv any
-			qv        string
+			qv, hv    string
 		)
+
 		if hxTags.inQuery() {
 			qv = hp.queryParams.Get(hxTags.realName(field.Name))
 		}
@@ -273,10 +189,17 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 			bv = target[field.Name]
 		}
 
+		if hxTags.inHeader() {
+			hv = hp.headers.Get(hxTags.realName(field.Name))
+		}
+
+		// apply body in first
 		if bv != nil {
 			value = bv
 		} else if qv != "" {
 			value = qv
+		} else if hv != "" {
+			value = hv
 		} else {
 			if hxTags.must {
 				if hxTags.place != "" {
@@ -320,50 +243,7 @@ func (hp *hxParser) existInQueryParam(key string) bool {
 	return false
 }
 
-func getMapValue(data map[string]any, path ...string) (any, bool) {
-	if len(path) == 0 {
-		return "", false
-	}
-
-	// 递归遍历map的路径
-	cursor := data
-	for _, key := range path {
-		value, ok := cursor[key]
-		if !ok {
-			return nil, false
-		}
-		cursor, ok = value.(map[string]any)
-		if !ok {
-			return value, true
-		}
-	}
-
-	return nil, false
-}
-
-func isMapValueExist(data map[string]interface{}, path ...string) bool {
-	if len(path) == 0 {
-		return false
-	}
-
-	// 递归遍历map的路径
-	cursor := data
-	for _, key := range path {
-		value, ok := cursor[key]
-		if !ok {
-			return false
-		}
-		cursor, ok = value.(map[string]interface{})
-		if !ok {
-			return true
-		}
-	}
-
-	// 检查最终路径对应的值是否存在
-	return reflect.ValueOf(cursor).IsValid()
-}
-
-func setIntField(value string, bitSize int, field reflect.Value, ht *httpXTag) error {
+func setIntField(value string, bitSize int, field reflect.Value, ht *hxTag) error {
 
 	if value == "" {
 		value = "0"
@@ -390,7 +270,7 @@ func setIntField(value string, bitSize int, field reflect.Value, ht *httpXTag) e
 	return nil
 }
 
-func setUintField(value string, bitSize int, field reflect.Value, ht *httpXTag) error {
+func setUintField(value string, bitSize int, field reflect.Value, ht *hxTag) error {
 	if value == "" {
 		value = "0"
 	}
@@ -419,7 +299,7 @@ func setUintField(value string, bitSize int, field reflect.Value, ht *httpXTag) 
 	return nil
 }
 
-func setBoolField(value string, field reflect.Value, ht *httpXTag) error {
+func setBoolField(value string, field reflect.Value, ht *hxTag) error {
 	if value == "" {
 		value = "false"
 	}
@@ -430,7 +310,7 @@ func setBoolField(value string, field reflect.Value, ht *httpXTag) error {
 	return err
 }
 
-func setFloatField(value string, bitSize int, field reflect.Value, ht *httpXTag) error {
+func setFloatField(value string, bitSize int, field reflect.Value, ht *hxTag) error {
 	if value == "" {
 		value = "0.0"
 	}
@@ -460,7 +340,7 @@ func setFloatField(value string, bitSize int, field reflect.Value, ht *httpXTag)
 	return nil
 }
 
-func setStringField(value string, field reflect.Value, ht *httpXTag) error {
+func setStringField(value string, field reflect.Value, ht *hxTag) error {
 	if ht.valueRange != "" {
 		allowedValues := strings.Split(ht.valueRange, ",")
 		validValue := false
@@ -479,25 +359,8 @@ func setStringField(value string, field reflect.Value, ht *httpXTag) error {
 	return nil
 }
 
-func setValue(t reflect.Type, val reflect.Value, v reflect.Value) error {
-	if v.Elem().Kind() == reflect.Invalid {
-		v.Set(reflect.New(t))
-	}
-
-	structField := v.Elem()
-
-	//TODO value time.Time
-	switch t.Kind() {
-	case reflect.Ptr:
-		return setValue(t.Elem(), val, structField)
-	default:
-		structField.Set(reflect.ValueOf(val))
-	}
-	return nil
-}
-
 // setFieldAndValidate sets a struct field with a value, ensuring it is of the proper type.
-func (hp *hxParser) setFieldAndValidate(structFieldPtr reflect.Value, objT reflect.Type, oriV any, ht *httpXTag, paths ...string) error {
+func (hp *hxParser) setFieldAndValidate(structFieldPtr reflect.Value, objT reflect.Type, oriV any, ht *hxTag, paths ...string) error {
 	if structFieldPtr.Elem().Kind() == reflect.Invalid {
 		structFieldPtr.Set(reflect.New(objT))
 	}

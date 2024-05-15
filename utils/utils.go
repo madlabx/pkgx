@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -54,8 +55,12 @@ func StructToMapStrStr(input interface{}) map[string]string {
 }
 
 func structToMapStrStrInternal(input interface{}, m map[string]string) {
-	objT := reflect.TypeOf(input)
 	objV := reflect.ValueOf(input)
+	if objV.Kind() == reflect.Pointer {
+		structToMapStrStrInternal(objV.Elem().Interface(), m)
+		return
+	}
+	objT := objV.Type()
 
 	for i := 0; i < objT.NumField(); i++ {
 		switch objV.Field(i).Kind() {
@@ -64,7 +69,7 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 		case reflect.String:
 			m[objT.Field(i).Name] = objV.Field(i).String()
 		default:
-			log.Errorf("%v, Wrong type:%v, Name:%v", i, objV.Field(i).Kind(), objT.Field(i).Name)
+			m[objT.Field(i).Name] = fmt.Sprintf("%v", objV.Field(i).Interface())
 		}
 	}
 }
@@ -93,6 +98,10 @@ func Md5Sum(strToSign string) string {
 	return fmt.Sprintf("%x", ret[:])
 }
 
+func Sha1Sum(strToSign string) string {
+	ret := sha1.Sum([]byte(strToSign))
+	return fmt.Sprintf("%x", ret[:])
+}
 func NewRequestId() string {
 	uuid := uuid.NewV4()
 	return strings.ToUpper(uuid.String())

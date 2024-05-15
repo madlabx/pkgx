@@ -12,12 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	resty "github.com/go-resty/resty/v2"
 	"github.com/madlabx/pkgx/errors"
-
 	"github.com/madlabx/pkgx/log"
 	"github.com/madlabx/pkgx/typex"
-
-	resty "github.com/go-resty/resty/v2"
 )
 
 var ErrBadParams error = errors.New("Bad input params")

@@ -114,14 +114,14 @@ type Sentinel = errors.Sentinel
 // New returns an error with the supplied message.
 // New also records the stack trace at the point it was called.
 func New(message string) error {
-	return errors.WithStackDepth(errors.NewPlain(message), 1)
+	return errors.WithStackDepthIf(errors.NewPlain(message), 1)
 }
 
 // Errorf formats according to a format specifier and returns the string
 // as a value that satisfies error.
 // Errorf also records the stack trace at the point it was called.
 func Errorf(format string, args ...interface{}) error {
-	return errors.WithStackDepth(errors.NewPlain(fmt.Sprintf(format, args...)), 1)
+	return errors.WithStackDepthIf(errors.NewPlain(fmt.Sprintf(format, args...)), 1)
 
 }
 
@@ -135,14 +135,14 @@ func WithStack(err error) error {
 // at the point Wrap is called.
 // If err is nil, Wrap returns nil.
 func Wrap(err error) error {
-	return errors.WithStackDepth(err, stackDepth)
+	return errors.WithStackDepthIf(err, stackDepth)
 }
 
 // Wrapf returns an error annotating err with a stack trace
 // at the point Wrapf is called, and the format specifier.
 // If err is nil, Wrapf returns nil.
 func Wrapf(err error, format string, args ...interface{}) error {
-	return errors.WithStackDepth(WithMessagef(err, format, args...), stackDepth)
+	return errors.WithStackDepthIf(WithMessagef(err, format, args...), stackDepth)
 }
 
 // Cause returns the underlying cause of the error, if possible.

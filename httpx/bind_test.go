@@ -43,6 +43,17 @@ func TestBindAndValidate(t *testing.T) {
 			return c
 		}
 	}
+	mockRequestWithHeaders := func(method, uri string, body io.Reader, header http.Header) handleFunc {
+		return func() echo.Context {
+			e := echo.New()
+			req := httptest.NewRequest(method, uri, body)
+			req.Header = header
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			return c
+		}
+	}
 	as := func(expect, output any) any {
 		return assert.Equal(t, expect, output)
 	}
@@ -57,7 +68,7 @@ func TestBindAndValidate(t *testing.T) {
 			buildContext: mockRequest(http.MethodGet, "/?bandwidth=2", nil),
 			structFunc: func(parsed any) any {
 				type inputStruct struct {
-					Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_query_name:"bandwidth" hx_default:"1" hx_range:"1-10"`
+					Bandwidth uint64 `hx_place:"query" hx_must:"true" hx_name:"bandwidth" hx_default:"1" hx_range:"1-10"`
 				}
 
 				if parsed == nil {
@@ -212,7 +223,57 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: errors.New("missing parameter Bandwidth"),
 		},
+		{
+			testName:     "InHeader",
+			buildContext: mockRequestWithHeaders(http.MethodGet, "/", nil, http.Header{"X-Client-Id": {"172.1.2.1"}}),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					ClientIp string `hx_name:"X-Client-ID" hx_place:"header" hx_must:"true"`
+				}
 
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as("172.1.2.1", parsed.(*inputStruct).ClientIp)
+			},
+
+			expectedError: nil,
+		},
+		{
+			testName:     "InHeaderMiss",
+			buildContext: mockRequestWithHeaders(http.MethodGet, "/", nil, http.Header{"ClientId": {"172.1.2.1"}}),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					ClientId string `hx_place:"header" hx_must:"true"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as("172.1.2.1", parsed.(*inputStruct).ClientId)
+			},
+
+			expectedError: errors.New("missing header parameter ClientId"),
+		},
+		{
+			testName:     "InHeaderName",
+			buildContext: mockRequestWithHeaders(http.MethodGet, "/", nil, http.Header{"X-Real-Ip": {"172.1.2.1"}}),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					ClientId string `hx_place:"header" hx_name:"X-Real-Ip" hx_must:"true"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as("172.1.2.1", parsed.(*inputStruct).ClientId)
+			},
+
+			expectedError: nil,
+		},
 		{
 			testName:     "PatchSetBodyValues",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2", strings.NewReader(`{"Bandwidth":1, "Quality":{"Level":1.0}}`)),
