@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/madlabx/pkgx/errors"
-
 	"github.com/labstack/echo"
+	"github.com/madlabx/pkgx/errors"
 )
 
 type JsonResponse struct {
@@ -77,7 +76,12 @@ func SuccessResp(result interface{}) error {
 	}
 }
 
-func ResultResp(status, code int, result interface{}) error {
+func (jr *JsonResponse)WithMessage(msg string) *JsonResponse {
+	jr.Message = &msg
+	return jr
+}
+
+func ResultResp(status, code int, result interface{}) *JsonResponse {
 	codeStr := handleECodeToStr(code)
 	return &JsonResponse{
 		Status:  status,
@@ -123,10 +127,11 @@ func ErrorResp(status, code int, err error) *JsonResponse {
 		e.Status = status
 		e.CodeInt = &code
 		e.Code = &codeStr
+		e.err = errors.Wrap(e.err)
 		return e
 	default:
 		return &JsonResponse{
-			err:     errors.WithStack(err),
+			err:     errors.Wrap(err),
 			Status:  status,
 			CodeInt: &code,
 			Code:    &codeStr,
@@ -207,7 +212,7 @@ func SendResp(c echo.Context, resp error) (err error) {
 
 		var e *JsonResponse
 		switch {
-		case errors.As(resp, &e):
+		case errors.As(resp, &e) :
 			if e.IsNoContent() {
 				err = c.NoContent(e.Status)
 			} else {
@@ -216,6 +221,10 @@ func SendResp(c echo.Context, resp error) (err error) {
 					e.RequestId = &rid
 				}
 				err = c.JSON(e.Status, e)
+
+				if err == nil && e.Unwrap()!= nil {
+					err = e.Unwrap()
+				}
 			}
 		default:
 			err = c.JSON(http.StatusInternalServerError, map[string]interface{}{
@@ -224,6 +233,10 @@ func SendResp(c echo.Context, resp error) (err error) {
 				"Code":      handleECodeToStr(handleGetECodeInternalError()),
 				"Message":   resp.Error(),
 			})
+
+			if err == nil {
+				err = resp
+			}
 		}
 	}
 
