@@ -21,7 +21,7 @@ func f2() error {
 func f3() error {
 	err := f2()
 	log.Printf("f3:%+v\n", err)
-	return errors.WithMessage(err, "WithMessage")
+	return errors.Wrapf(err, "WithMessage")
 }
 
 func main() {

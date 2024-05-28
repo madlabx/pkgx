@@ -96,9 +96,10 @@ package errors
 
 import (
 	"fmt"
+
 	"emperror.dev/errors"
 	"github.com/madlabx/pkgx/log"
-	//"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 )
 
 var (
@@ -142,7 +143,7 @@ func Wrap(err error) error {
 // at the point Wrapf is called, and the format specifier.
 // If err is nil, Wrapf returns nil.
 func Wrapf(err error, format string, args ...interface{}) error {
-	return errors.WithStackDepthIf(WithMessagef(err, format, args...), stackDepth)
+	return errors.WithStackDepthIf(pkgerrors.WithMessagef(err, format, args...), stackDepth)
 }
 
 // Cause returns the underlying cause of the error, if possible.

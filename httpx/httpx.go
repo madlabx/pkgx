@@ -3,12 +3,12 @@ package httpx
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
-	"errors"
 
 	"github.com/madlabx/pkgx/errno"
 	"github.com/madlabx/pkgx/log"
@@ -51,9 +51,9 @@ func HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) 
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		return nil, nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
+		return nil, nil, err
 	}
-	
+
 	return requestBytesForBody(defaultClient, "POST", url, b, true)
 }
 
@@ -91,7 +91,8 @@ func HttpPost(url string, body interface{}) (*http.Response, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
+		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
+		return nil, err
 	}
 
 	return requestBytes(
@@ -105,7 +106,8 @@ func httpPostInternal(cli *Client, url string, body interface{}) (*http.Response
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
+		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
+		return nil, err
 	}
 
 	return requestBytes(cli, "POST", url, b)
@@ -130,7 +132,7 @@ func requestBytesForBody(hc *Client, method, requrl string, bodyBytes []byte, wa
 	rsp, err := hc.cli.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, Wrap(err)
+		return nil, nil, wrap(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -179,7 +181,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 	rsp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, Wrap(err)
+		return nil, nil, wrap(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -191,7 +193,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			return nil, nil, errors.New("Failed to parse response body")
 		}
 
 		//log.Errorf("Got not 200 response[%#v], body[%v]", rsp, string(body))
@@ -200,13 +202,13 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 		err = json.Unmarshal(body, &newStatusError)
 		if err != nil {
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse error information: "+string(body))
+			return nil, nil, errors.New("Failed to parse error information: " + string(body))
 		}
 		newStatusError.Status = rsp.StatusCode
 
-		if *newStatusError.CodeInt == errno.ECODE_SUCCESS {
-			*newStatusError.CodeInt = errno.ECODE_FAILED_HTTP_REQUEST
-			*newStatusError.Message = string(body)
+		if newStatusError.Errno == errno.ECODE_SUCCESS {
+			newStatusError.Errno = errno.ECODE_FAILED_HTTP_REQUEST
+			newStatusError.WithMsg(string(body))
 		}
 		//log.Errorf("err:%v", newStatusError)
 
@@ -217,7 +219,8 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
 			log.Errorf("read body err, %v", err.Error())
-			return nil, nil, ErrStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			//return nil, nil, errStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
+			return nil, nil, errors.New("Failed to parse response body")
 		}
 		return rsp, body, err
 	}
