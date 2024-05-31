@@ -95,6 +95,7 @@
 package errors
 
 import (
+	rawerrors "errors"
 	"fmt"
 
 	"emperror.dev/errors"
@@ -106,7 +107,7 @@ var (
 	stackDepth = 1
 )
 
-func SetStackDepth(d int) {
+func ResetStackDepth(d int) {
 	stackDepth = d
 }
 
@@ -115,14 +116,14 @@ type Sentinel = errors.Sentinel
 // New returns an error with the supplied message.
 // New also records the stack trace at the point it was called.
 func New(message string) error {
-	return errors.WithStackDepthIf(errors.NewPlain(message), 1)
+	return errors.WithStackDepthIf(rawerrors.New(message), stackDepth)
 }
 
 // Errorf formats according to a format specifier and returns the string
 // as a value that satisfies error.
 // Errorf also records the stack trace at the point it was called.
 func Errorf(format string, args ...interface{}) error {
-	return errors.WithStackDepthIf(errors.NewPlain(fmt.Sprintf(format, args...)), 1)
+	return errors.WithStackDepthIf(fmt.Errorf(format, args...), stackDepth)
 
 }
 

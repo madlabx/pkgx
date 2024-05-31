@@ -131,8 +131,8 @@ func requestBytesForBody(hc *Client, method, requrl string, bodyBytes []byte, wa
 	req.Header.Set("Connection", "close")
 	rsp, err := hc.cli.Do(req)
 	if err != nil {
-		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, wrap(err)
+		//TODO add httpError
+		return nil, nil, err
 	}
 	defer func() {
 		if rsp != nil {

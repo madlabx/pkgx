@@ -2,6 +2,8 @@ package httpx
 
 import (
 	"encoding/json"
+	rawerrors "errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -66,13 +68,13 @@ func (jr *JsonResponse) Error() string {
 
 // WithMsg to be simple, do overwrite
 func (jr *JsonResponse) WithMsg(msg string) *JsonResponse {
-	jr.err = errors.New(msg)
+	jr.err = errors.WrapWithRelativeStackDepth(rawerrors.New(msg), 1)
 	return jr
 }
 
 // WithMsg to be simple, do overwrite
 func (jr *JsonResponse) WithMsgf(format string, a ...any) *JsonResponse {
-	jr.err = errors.Errorf(format, a...)
+	jr.err = errors.WrapWithRelativeStackDepth(fmt.Errorf(format, a...), 1)
 	return jr
 }
 
