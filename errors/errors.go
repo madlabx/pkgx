@@ -139,6 +139,9 @@ func Wrap(err error) error {
 	return errors.WithStackDepthIf(err, stackDepth)
 }
 
+func WrapWithRelativeStackDepth(err error, depth int) error {
+	return errors.WithStackDepthIf(err, stackDepth+depth)
+}
 // Wrapf returns an error annotating err with a stack trace
 // at the point Wrapf is called, and the format specifier.
 // If err is nil, Wrapf returns nil.

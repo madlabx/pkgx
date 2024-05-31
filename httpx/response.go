@@ -84,7 +84,7 @@ func (jr *JsonResponse) WithResult(result any) *JsonResponse {
 
 // WithError to be simple, do overwrite
 func (jr *JsonResponse) WithError(err error) *JsonResponse {
-	jr.err = err
+	jr.err = errors.WrapWithRelativeStackDepth(err, 1)
 
 	//if jr.err != nil {
 	//	jr.err = errors.Join(jr.err, err)
