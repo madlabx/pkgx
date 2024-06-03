@@ -1,6 +1,7 @@
 package errcode
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -35,6 +36,13 @@ func (de *DefaultErrCode) GetHttpStatus() int {
 }
 func (de *DefaultErrCode) GetErrno() int {
 	return de.Errno
+}
+func (de *DefaultErrCode) Unwrap() error {
+	if de.Status != http.StatusOK {
+		return fmt.Errorf("Status:%d, Code:%s, Errno:%d", de.Status, de.Code, de.Errno)
+	} else {
+		return nil
+	}
 }
 
 type DefaultErrCodeDic struct {
@@ -79,6 +87,7 @@ type ErrorCodeIf interface {
 	GetHttpStatus() int
 	GetCode() string
 	GetErrno() int
+	Unwrap() error
 }
 
 type ErrorCodeDictionaryIf interface {

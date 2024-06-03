@@ -181,7 +181,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 	rsp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("failed to send request, err:%#v", err.Error())
-		return nil, nil, wrap(err)
+		return nil, nil, Wrap(err)
 	}
 	defer func() {
 		if rsp != nil {
@@ -208,7 +208,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 
 		if newStatusError.Errno == errno.ECODE_SUCCESS {
 			newStatusError.Errno = errno.ECODE_FAILED_HTTP_REQUEST
-			newStatusError.WithMsg(string(body))
+			newStatusError.WithErrorf(string(body))
 		}
 		//log.Errorf("err:%v", newStatusError)
 

@@ -2,7 +2,6 @@ package httpx
 
 import (
 	"encoding/json"
-	rawerrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,7 +27,7 @@ type JsonResponse struct {
 	Status int `json:"-"`
 
 	Code    string `json:"Code,omitempty"`
-	Errno   int    `json:"CodeInt,omitempty"`
+	Errno   int    `json:"Errno,omitempty"`
 	Message string `json:"Message,omitempty"`
 
 	RequestId string `json:"RequestId,omitempty"`
@@ -66,24 +65,6 @@ func (jr *JsonResponse) Error() string {
 	return ""
 }
 
-// WithMsg to be simple, do overwrite
-func (jr *JsonResponse) WithMsg(msg string) *JsonResponse {
-	jr.err = errors.WrapWithRelativeStackDepth(rawerrors.New(msg), 1)
-	return jr
-}
-
-// WithMsg to be simple, do overwrite
-func (jr *JsonResponse) WithMsgf(format string, a ...any) *JsonResponse {
-	jr.err = errors.WrapWithRelativeStackDepth(fmt.Errorf(format, a...), 1)
-	return jr
-}
-
-// WithResult to be simple, do overwrite
-func (jr *JsonResponse) WithResult(result any) *JsonResponse {
-	jr.Result = result
-	return jr
-}
-
 // WithError to be simple, do overwrite
 func (jr *JsonResponse) WithError(err error) *JsonResponse {
 	jr.err = errors.WrapWithRelativeStackDepth(err, 1)
@@ -95,12 +76,24 @@ func (jr *JsonResponse) WithError(err error) *JsonResponse {
 	return jr
 }
 
+// WithMsg to be simple, do overwrite
+func (jr *JsonResponse) WithErrorf(format string, a ...any) *JsonResponse {
+	jr.err = errors.WrapWithRelativeStackDepth(fmt.Errorf(format, a...), 1)
+	return jr
+}
+
+// WithResult to be simple, do overwrite
+func (jr *JsonResponse) WithResult(result any) *JsonResponse {
+	jr.Result = result
+	return jr
+}
+
 func (jr *JsonResponse) json(c echo.Context) error {
 	if jr.Code == "" && jr.Errno == 0 && jr.Result == nil {
 		return c.NoContent(jr.Status)
 	}
-
 	jr.Message = jr.Error()
+	
 	err := c.JSON(jr.Status, jr)
 	if err != nil {
 		err = jr.Unwrap()
@@ -113,7 +106,7 @@ func (jr *JsonResponse) Unwrap() error {
 	return jr.err
 }
 
-func wrap(err error) *JsonResponse {
+func Wrap(err error) *JsonResponse {
 	if err == nil {
 		return nil
 	}
@@ -130,6 +123,7 @@ func wrap(err error) *JsonResponse {
 			Status: ec.GetHttpStatus(),
 			Code:   ec.GetCode(),
 			Errno:  ec.GetErrno(),
+			err: ec.Unwrap(),
 		}
 	case errors.As(err, &eh):
 		jr = &JsonResponse{
@@ -287,7 +281,7 @@ func SendResp(c echo.Context, resp error) (err error) {
 		return c.NoContent(http.StatusOK)
 	}
 
-	jr := wrap(resp)
+	jr := Wrap(resp)
 	jr.RequestId = rid
 
 	return jr.json(c)
