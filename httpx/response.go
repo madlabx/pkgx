@@ -34,24 +34,6 @@ type JsonResponse struct {
 	Result    any    `json:"Result,omitempty"`
 }
 
-//
-//func (jr *JsonResponse) MarshalJSON() ([]byte, error) {
-//
-//	output := map[string]any {
-//		"Code" : jr.Code,
-//		"CodeInt":jr.Errno,
-//		"RequestId": jr.RequestId,
-//	}
-//	if jr.err != nil {
-//		output["Message"] = jr.Error()
-//	}
-//
-//
-//
-//
-//
-//}
-
 func (jr *JsonResponse) String() string {
 	jsonString, _ := json.Marshal(jr)
 	return string(jsonString)
@@ -66,8 +48,12 @@ func (jr *JsonResponse) Error() string {
 }
 
 // WithError to be simple, do overwrite
-func (jr *JsonResponse) WithError(err error) *JsonResponse {
-	jr.err = errors.WrapWithRelativeStackDepth(err, 1)
+func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
+	depth := 1
+	if len(depths) > 0 {
+		depth = depths[0]
+	}
+	jr.err = errors.WrapWithRelativeStackDepth(err, depth)
 
 	//if jr.err != nil {
 	//	jr.err = errors.Join(jr.err, err)
@@ -105,7 +91,13 @@ func (jr *JsonResponse) json(c echo.Context) error {
 func (jr *JsonResponse) Unwrap() error {
 	return jr.err
 }
+func (jr *JsonResponse) ToError() error {
+	if jr.err != nil {
+		return jr.err
+	}
 
+	return fmt.Errorf("Errno:%v, Code:%v", jr.Errno, jr.Code)
+}
 func Wrap(err error) *JsonResponse {
 	if err == nil {
 		return nil

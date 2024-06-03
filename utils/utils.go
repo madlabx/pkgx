@@ -63,11 +63,21 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 	objT := objV.Type()
 
 	for i := 0; i < objT.NumField(); i++ {
+
 		switch objV.Field(i).Kind() {
 		case reflect.Struct:
 			structToMapStrStrInternal(objV.Field(i).Interface(), m)
 		case reflect.String:
 			m[objT.Field(i).Name] = objV.Field(i).String()
+
+		case reflect.Int,reflect.Int64:
+			m[objT.Field(i).Name] = fmt.Sprintf("%v", objV.Field(i).Interface())
+		case reflect.Ptr:
+			if objV.Field(i).IsNil() {
+				m[objT.Field(i).Name] = ""
+			} else {
+				structToMapStrStrInternal(objV.Field(i).Interface(), m)
+			}
 		default:
 			m[objT.Field(i).Name] = fmt.Sprintf("%v", objV.Field(i).Interface())
 		}
