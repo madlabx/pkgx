@@ -63,23 +63,28 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 	objT := objV.Type()
 
 	for i := 0; i < objT.NumField(); i++ {
+		fieldI := objV.Field(i)
+		filedIT := objT.Field(i).Type
+		if fieldI.Kind() == reflect.Ptr {
+			fieldI = fieldI.Elem()
+			filedIT = filedIT.Elem()
+		}
 
-		switch objV.Field(i).Kind() {
+		if !fieldI.IsValid() {
+			continue
+		}
+		switch filedIT.Kind() {
 		case reflect.Struct:
-			structToMapStrStrInternal(objV.Field(i).Interface(), m)
+			structToMapStrStrInternal(fieldI.Interface(), m)
 		case reflect.String:
-			m[objT.Field(i).Name] = objV.Field(i).String()
-
+			m[objT.Field(i).Name] = fieldI.String()
 		case reflect.Int,reflect.Int64:
-			m[objT.Field(i).Name] = fmt.Sprintf("%v", objV.Field(i).Interface())
-		case reflect.Ptr:
-			if objV.Field(i).IsNil() {
-				m[objT.Field(i).Name] = ""
-			} else {
-				structToMapStrStrInternal(objV.Field(i).Interface(), m)
-			}
+			m[objT.Field(i).Name] = fmt.Sprintf("%v", fieldI.Int())
 		default:
-			m[objT.Field(i).Name] = fmt.Sprintf("%v", objV.Field(i).Interface())
+			if fieldI.IsNil(){
+				continue
+			}
+			m[objT.Field(i).Name] = fmt.Sprintf("%v", fieldI.Interface())
 		}
 	}
 }
