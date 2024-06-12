@@ -3,7 +3,6 @@ package httpx
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/madlabx/pkgx/errno"
+	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/log"
 )
 

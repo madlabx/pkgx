@@ -11,7 +11,7 @@ func TestErrorIs(t *testing.T) {
 
 	rawErr := errors.New("rawErrorString")
 
-	newErr := wrap(rawErr)
+	newErr := Wrap(rawErr)
 
 	isSameError := errors.Is(newErr, rawErr)
 	require.True(t, isSameError)

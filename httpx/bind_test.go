@@ -207,7 +207,24 @@ func TestBindAndValidate(t *testing.T) {
 			expectedError: errors.New("missing parameter Bandwidth"),
 		},
 		{
-			testName:     "BodyIntLostMust",
+			testName:     "BodyEmptyArray",
+			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec", "PageNum":2}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					Bandwidth []uint64 `hx_must:"true" hx_range:"0-10"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+
+				return as(uint64(0), parsed.(*inputStruct).Bandwidth)
+			},
+
+			expectedError: errors.New("missing parameter Bandwidth"),
+		},
+		{
+			testName:     "BodyEmpty",
 			buildContext: mockRequest(http.MethodGet, "/", nil),
 			structFunc: func(parsed any) any {
 				type inputStruct struct {

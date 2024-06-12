@@ -8,6 +8,7 @@ require (
 	github.com/fogleman/gg v1.3.0
 	github.com/go-echarts/go-echarts/v2 v2.3.3
 	github.com/go-resty/resty/v2 v2.11.0
+	github.com/google/uuid v1.4.0
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.4.1
