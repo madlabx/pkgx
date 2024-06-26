@@ -49,6 +49,10 @@ func (jr *JsonResponse) Error() string {
 
 // WithError to be simple, do overwrite
 func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
+	if err == nil {
+		return jr
+	}
+	
 	depth := 1
 	if len(depths) > 0 {
 		depth = depths[0]
@@ -91,13 +95,23 @@ func (jr *JsonResponse) json(c echo.Context) error {
 func (jr *JsonResponse) Unwrap() error {
 	return jr.err
 }
+
+func (jr *JsonResponse) IsOK() bool {
+	return jr.Status == errCodeDic.GetSuccess().GetHttpStatus()
+}
+
 func (jr *JsonResponse) ToError() error {
 	if jr.err != nil {
 		return jr.err
 	}
 
-	return fmt.Errorf("Errno:%v, Code:%v", jr.Errno, jr.Code)
+	if !jr.IsOK() {
+		return fmt.Errorf("Errno:%v, Code:%v", jr.Errno, jr.Code)
+	}
+
+	return nil
 }
+
 func Wrap(err error) *JsonResponse {
 	if err == nil {
 		return nil
@@ -115,14 +129,14 @@ func Wrap(err error) *JsonResponse {
 			Status: ec.GetHttpStatus(),
 			Code:   ec.GetCode(),
 			Errno:  ec.GetErrno(),
-			err: ec.Unwrap(),
+			err: errors.WrapWithRelativeStackDepth(ec.Unwrap(), 1),
 		}
 	case errors.As(err, &eh):
 		jr = &JsonResponse{
 			Status: eh.Code,
 			Code:   http.StatusText(eh.Code),
 			Errno:  eh.Code,
-			err:    eh,
+			err:    errors.WrapWithRelativeStackDepth(eh, 1),
 		}
 
 		//TODO 对于PathError是否还需要单独处理，不打印出path
@@ -133,7 +147,7 @@ func Wrap(err error) *JsonResponse {
 			Status: http.StatusInternalServerError,
 			Code:   http.StatusText(http.StatusInternalServerError),
 			Errno:  http.StatusInternalServerError,
-			err:    err,
+			err:    errors.WrapWithRelativeStackDepth(err, 1),
 		}
 	}
 
