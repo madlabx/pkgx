@@ -55,7 +55,7 @@ type LogConfig struct {
 
 type ApiGateway struct {
 	ctx         context.Context
-	Echo        *echo.Echo
+	*echo.Echo
 	Logger      *logrus.Logger
 	LogConf     *LogConfig
 	EntryFormat logrus.Formatter
