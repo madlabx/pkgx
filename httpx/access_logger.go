@@ -173,14 +173,12 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 				c.Response().Writer = writer
 			}
 
-			if err = next(c); err != nil {
-				c.Error(err)
-			}
 			stop := time.Now()
 			buf := config.pool.Get().(*bytes.Buffer)
 			buf.Reset()
 			defer config.pool.Put(buf)
 
+			//Log after run
 			if _, err = config.template.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
 				switch tag {
 				case "time_unix":
@@ -231,23 +229,12 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 						s = config.colorer.Cyan(n)
 					}
 					return buf.WriteString(s)
-				case "error":
-					if err != nil {
-						return buf.WriteString(err.Error())
-					}
-				case "latency":
-					l := stop.Sub(start)
-					return buf.WriteString(strconv.FormatInt(int64(l), 10))
-				case "latency_human":
-					return buf.WriteString(stop.Sub(start).String())
 				case "bytes_in":
 					cl := req.Header.Get(echo.HeaderContentLength)
 					if cl == "" {
 						cl = "0"
 					}
 					return buf.WriteString(cl)
-				case "bytes_out":
-					return buf.WriteString(strconv.FormatInt(res.Size, 10))
 				case "body_in":
 					cl := req.Header.Get(echo.HeaderContentLength)
 					if cl == "" {
@@ -255,14 +242,10 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 					}
 					bytesIn, _ := strconv.Atoi(cl)
 					return buf.WriteString(loggingRequestBody(c, int64(bytesIn)))
-				case "body_out":
-					return buf.WriteString(loggingResponseBody(c, doPrintBodyOut, res.Size, respBody.Bytes()))
 				default:
 					switch {
 					case strings.HasPrefix(tag, "header_in:"):
 						return buf.Write([]byte(c.Request().Header.Get(tag[11:])))
-					case strings.HasPrefix(tag, "header_out:"):
-						return buf.Write([]byte(c.Response().Header().Get(tag[12:])))
 					case strings.HasPrefix(tag, "query:"):
 						return buf.Write([]byte(c.QueryParam(tag[6:])))
 					case strings.HasPrefix(tag, "form:"):
@@ -278,7 +261,36 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 			}); err != nil {
 				return
 			}
+			if _, err = config.Output.Write(buf.Bytes()); err != nil {
+				return
+			}
 
+			if err = next(c); err != nil {
+				c.Error(err)
+			}
+
+			//Log after run
+			if _, err = config.template.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
+				switch tag {
+				case "latency":
+					l := stop.Sub(start)
+					return buf.WriteString(strconv.FormatInt(int64(l), 10))
+				case "latency_human":
+					return buf.WriteString(stop.Sub(start).String())
+				case "bytes_out":
+					return buf.WriteString(strconv.FormatInt(res.Size, 10))
+				case "body_out":
+					return buf.WriteString(loggingResponseBody(c, doPrintBodyOut, res.Size, respBody.Bytes()))
+				default:
+					switch {
+					case strings.HasPrefix(tag, "header_out:"):
+						return buf.Write([]byte(c.Response().Header().Get(tag[12:])))
+					}
+				}
+				return 0, nil
+			}); err != nil {
+				return
+			}
 			_, err = config.Output.Write(buf.Bytes())
 			return
 		}
