@@ -57,7 +57,13 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	if len(depths) > 0 {
 		depth = depths[0]
 	}
-	jr.err = errors.WrapWithRelativeStackDepth(err, depth)
+
+	newJr := &JsonResponse{}
+	if errors.As(err, &newJr) {
+		jr.err = newJr.ToError()
+	} else {
+		jr.err = errors.WrapWithRelativeStackDepth(err, depth)
+	}
 
 	//if jr.err != nil {
 	//	jr.err = errors.Join(jr.err, err)
