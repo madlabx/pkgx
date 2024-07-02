@@ -103,7 +103,8 @@ func (jr *JsonResponse) Unwrap() error {
 }
 
 func (jr *JsonResponse) IsOK() bool {
-	return jr.Status == errCodeDic.GetSuccess().GetHttpStatus()
+	//jr.Status is not reliable
+	return jr.Errno == errCodeDic.GetSuccess().GetHttpStatus()
 }
 
 func (jr *JsonResponse) ToError() error {

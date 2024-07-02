@@ -204,7 +204,6 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
 			return nil, nil, errors.New("Failed to parse error information: " + string(body))
 		}
-		newStatusError.Status = rsp.StatusCode
 
 		if newStatusError.Errno == errno.ECODE_SUCCESS {
 			newStatusError.Errno = errno.ECODE_FAILED_HTTP_REQUEST
