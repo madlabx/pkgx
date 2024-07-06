@@ -1,7 +1,6 @@
 package httpx
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/errcode"
 	"github.com/madlabx/pkgx/errors"
+	"github.com/madlabx/pkgx/utils"
 )
 
 var errCodeDic errcode.ErrorCodeDictionaryIf
@@ -43,9 +43,28 @@ func (jr *JsonResponse) Is(target error) bool {
 	return false
 }
 
-func (jr *JsonResponse) String() string {
-	jsonString, _ := json.Marshal(jr)
-	return string(jsonString)
+func (jr *JsonResponse) JsonString() string {
+	return utils.ToString(jr)
+}
+
+func (jr *JsonResponse) flatErrString() string {
+	var builder strings.Builder
+	if jr.Code != "" {
+		builder.WriteString(fmt.Sprintf("Code:%v, Errno:%v", jr.Code, jr.Errno))
+	}
+
+	if jr.Message != "" {
+		builder.WriteString(fmt.Sprintf(", Message:%v,", jr.Message))
+	}
+
+	//if jr.Result != nil {
+	//	builder.WriteString(fmt.Sprintf(", Result:%v", utils.ToString(jr.Result)))
+	//}
+
+	if jr.err != nil {
+		builder.WriteString(fmt.Sprintf(", Err:%s", jr.err))
+	}
+	return builder.String()
 }
 
 func (jr *JsonResponse) Error() string {
@@ -61,7 +80,7 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			fmt.Fprintf(s, "%s", jr.String())
+			fmt.Fprintf(s, "%s", jr.JsonString())
 			if jr.err != nil {
 				fmt.Fprintf(s, ",err:{")
 				fe, ok := jr.err.(fmt.Formatter)
@@ -77,9 +96,9 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 
 		fallthrough
 	case 's':
-		fmt.Fprintf(s, "%s", jr.String())
+		fmt.Fprintf(s, "%s", jr.JsonString())
 	case 'q':
-		fmt.Fprintf(s, "%q", jr.String())
+		fmt.Fprintf(s, "%q", jr.JsonString())
 	}
 }
 
@@ -88,7 +107,7 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	if err == nil {
 		return jr
 	}
-	
+
 	depth := 1
 	if len(depths) > 0 {
 		depth = depths[0]
@@ -116,12 +135,15 @@ func (jr *JsonResponse) WithResult(result any) *JsonResponse {
 	return jr
 }
 
-func (jr *JsonResponse) json(c echo.Context) error {
+func (jr *JsonResponse) cjson(c echo.Context) error {
 	if jr.Code == "" && jr.Errno == 0 && jr.Result == nil {
 		return c.NoContent(jr.Status)
 	}
-	jr.Message = jr.Error()
-	
+
+	if jr.Message == "" {
+		jr.Message = jr.Error()
+	}
+
 	err := c.JSON(jr.Status, jr)
 	if err != nil {
 		err = jr.Unwrap()
@@ -145,7 +167,7 @@ func (jr *JsonResponse) ToError() error {
 	}
 
 	if !jr.IsOK() {
-		return fmt.Errorf("Errno:%v, Code:%v", jr.Errno, jr.Code)
+		return fmt.Errorf(jr.flatErrString())
 	}
 
 	return nil
@@ -168,7 +190,7 @@ func Wrap(err error) *JsonResponse {
 			Status: ec.GetHttpStatus(),
 			Code:   ec.GetCode(),
 			Errno:  ec.GetErrno(),
-			err: errors.WrapWithRelativeStackDepth(ec.Unwrap(), 1),
+			err:    errors.WrapWithRelativeStackDepth(ec.Unwrap(), 1),
 		}
 	case errors.As(err, &eh):
 		jr = &JsonResponse{
@@ -320,16 +342,19 @@ func SendResp(c echo.Context, resp error) (err error) {
 		return resp
 	}
 
-	rid := errCodeDic.NewRequestId()
-	c.Response().Header().Set(echo.HeaderXRequestID, rid)
 	if resp == nil {
+		rid := errCodeDic.NewRequestId()
+		c.Response().Header().Set(echo.HeaderXRequestID, rid)
 		return c.NoContent(http.StatusOK)
 	}
 
 	jr := Wrap(resp)
-	jr.RequestId = rid
+	if jr.RequestId == "" {
+		jr.RequestId = errCodeDic.NewRequestId()
+	}
+	c.Response().Header().Set(echo.HeaderXRequestID, jr.RequestId)
 
-	return jr.json(c)
+	return jr.cjson(c)
 }
 
 func ServeContent(w http.ResponseWriter, req *http.Request, name string, modTime time.Time, length int64, content io.ReadSeeker) {

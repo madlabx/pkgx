@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/madlabx/pkgx/errno"
 	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/log"
 )
@@ -57,7 +56,7 @@ func HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) 
 	return requestBytesForBody(defaultClient, "POST", url, b, true)
 }
 
-func PostX(url string, reqBody interface{}) (*JsonResponse, error) {
+func PostX(url string, reqBody interface{}, result interface{}) (*JsonResponse, error) {
 	b, err := json.Marshal(reqBody)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, reqBody)
@@ -69,15 +68,18 @@ func PostX(url string, reqBody interface{}) (*JsonResponse, error) {
 		return nil, errors.Wrap(err)
 	}
 
-	jr:=&JsonResponse{}
+	jr := &JsonResponse{}
+	jr.Result = result
 	err = json.Unmarshal(body, &jr)
 	if err != nil {
 		return nil, errors.Wrap(err)
 	}
 
 	jr.Status = resp.StatusCode
-
-	return jr, err
+	if !jr.IsOK() {
+		jr.Result = nil
+	}
+	return jr, nil
 }
 
 type Client struct {
