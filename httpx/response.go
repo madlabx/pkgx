@@ -34,6 +34,15 @@ type JsonResponse struct {
 	Result    any    `json:"Result,omitempty"`
 }
 
+func (jr *JsonResponse) Is(target error) bool {
+	var ec errcode.ErrorCodeIf
+	if errors.As(target, &ec) {
+		return ec.GetCode() == jr.Code
+	}
+
+	return false
+}
+
 func (jr *JsonResponse) String() string {
 	jsonString, _ := json.Marshal(jr)
 	return string(jsonString)
@@ -45,6 +54,33 @@ func (jr *JsonResponse) Error() string {
 	}
 
 	return ""
+}
+
+// nolint: errcheck
+func (jr *JsonResponse) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if s.Flag('+') {
+			fmt.Fprintf(s, "%s", jr.String())
+			if jr.err != nil {
+				fmt.Fprintf(s, ",err:{")
+				fe, ok := jr.err.(fmt.Formatter)
+				if ok {
+					fe.Format(s, verb)
+				} else {
+					fmt.Fprintf(s, "%+v", jr.err)
+				}
+				fmt.Fprintf(s, "}")
+			}
+			return
+		}
+
+		fallthrough
+	case 's':
+		fmt.Fprintf(s, "%s", jr.String())
+	case 'q':
+		fmt.Fprintf(s, "%q", jr.String())
+	}
 }
 
 // WithError to be simple, do overwrite
@@ -64,10 +100,6 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	} else {
 		jr.err = errors.WrapWithRelativeStackDepth(err, depth)
 	}
-
-	//if jr.err != nil {
-	//	jr.err = errors.Join(jr.err, err)
-	//}
 
 	return jr
 }
@@ -104,7 +136,7 @@ func (jr *JsonResponse) Unwrap() error {
 
 func (jr *JsonResponse) IsOK() bool {
 	//jr.Status is not reliable
-	return jr.Errno == errCodeDic.GetSuccess().GetHttpStatus()
+	return jr.Code == errCodeDic.GetSuccess().GetCode()
 }
 
 func (jr *JsonResponse) ToError() error {
@@ -305,4 +337,10 @@ func ServeContent(w http.ResponseWriter, req *http.Request, name string, modTime
 	w.Header().Set(echo.HeaderXRequestID, rid)
 	w.Header().Set("Etag", NewEtag(modTime, length))
 	http.ServeContent(w, req, name, modTime, content)
+}
+
+func TrimHttpStatusText(status int) string {
+	trimmedSpace := strings.Replace(http.StatusText(status), " ", "", -1)
+	trimmedSpace = strings.Replace(trimmedSpace, "-", "", -1)
+	return trimmedSpace
 }

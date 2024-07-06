@@ -57,6 +57,29 @@ func HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) 
 	return requestBytesForBody(defaultClient, "POST", url, b, true)
 }
 
+func PostX(url string, reqBody interface{}) (*JsonResponse, error) {
+	b, err := json.Marshal(reqBody)
+	if err != nil {
+		log.Errorf("Parse json failed, url: %s, obj: %#v", url, reqBody)
+		return nil, errors.Wrap(err)
+	}
+
+	resp, body, err := requestBytesForBody(defaultClient, "POST", url, b, true)
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	jr:=&JsonResponse{}
+	err = json.Unmarshal(body, &jr)
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	jr.Status = resp.StatusCode
+
+	return jr, err
+}
+
 type Client struct {
 	cli *http.Client
 }
@@ -140,18 +163,6 @@ func requestBytesForBody(hc *Client, method, requrl string, bodyBytes []byte, wa
 		}
 	}()
 
-	if rsp.StatusCode != http.StatusOK && rsp.StatusCode != http.StatusCreated {
-		body, err := io.ReadAll(rsp.Body)
-		if err != nil {
-			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, err
-		}
-
-		err = errors.New(rsp.Status)
-
-		return rsp, body, err
-	}
-
 	if wantBody {
 		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
@@ -188,31 +199,6 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 			_ = rsp.Body.Close()
 		}
 	}()
-
-	if rsp.StatusCode != http.StatusOK && rsp.StatusCode != http.StatusCreated {
-		body, err := io.ReadAll(rsp.Body)
-		if err != nil {
-			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, errors.New("Failed to parse response body")
-		}
-
-		//log.Errorf("Got not 200 response[%#v], body[%v]", rsp, string(body))
-
-		var newStatusError JsonResponse
-		err = json.Unmarshal(body, &newStatusError)
-		if err != nil {
-			log.Errorf("read body err, err:%v, response:%v", err.Error(), rsp)
-			return nil, nil, errors.New("Failed to parse error information: " + string(body))
-		}
-
-		if newStatusError.Errno == errno.ECODE_SUCCESS {
-			newStatusError.Errno = errno.ECODE_FAILED_HTTP_REQUEST
-			newStatusError.WithErrorf(string(body))
-		}
-		//log.Errorf("err:%v", newStatusError)
-
-		return rsp, body, &newStatusError
-	}
 
 	if wantBody {
 		body, err := io.ReadAll(rsp.Body)
