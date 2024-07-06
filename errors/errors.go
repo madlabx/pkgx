@@ -95,7 +95,7 @@
 package errors
 
 import (
-	rawerrors "errors"
+	stderrors "errors"
 	"fmt"
 
 	"emperror.dev/errors"
@@ -116,7 +116,7 @@ type Sentinel = errors.Sentinel
 // New returns an error with the supplied message.
 // New also records the stack trace at the point it was called.
 func New(message string) error {
-	return errors.WithStackDepthIf(rawerrors.New(message), stackDepth)
+	return errors.WithStackDepthIf(stderrors.New(message), stackDepth)
 }
 
 // Errorf formats according to a format specifier and returns the string
@@ -143,6 +143,7 @@ func Wrap(err error) error {
 func WrapWithRelativeStackDepth(err error, depth int) error {
 	return errors.WithStackDepthIf(err, stackDepth+depth)
 }
+
 // Wrapf returns an error annotating err with a stack trace
 // at the point Wrapf is called, and the format specifier.
 // If err is nil, Wrapf returns nil.
@@ -165,8 +166,8 @@ func Cause(err error) error {
 	return errors.Cause(err)
 }
 
-func CheckFatalError(err error) {
+func CheckFatalError(err error, megs ...string) {
 	if err != nil {
-		log.Panicf("Panic: %+v", WithStack(err))
+		log.Fatalf("Panic: %+v, Message:%v", WithStack(err), megs)
 	}
 }

@@ -4,12 +4,11 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/madlabx/pkgx/viperx"
-
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/httpx"
 	"github.com/madlabx/pkgx/log"
+	"github.com/madlabx/pkgx/viperx"
 )
 
 type Boy struct {
@@ -86,8 +85,6 @@ func main() {
 		DisableSorting:   true})
 
 	e := agw.Echo
-
-	httpx.RegisterHandle(func() int { return 0 }, nil, nil, nil, nil, nil, nil)
 
 	e.GET("/v1/hx_tag/api", func(ctx echo.Context) error {
 		req := TusReq{CCC: 7}

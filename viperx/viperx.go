@@ -1,16 +1,24 @@
 package viperx
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 type ViperX struct {
-	v *viper.Viper
+	v         *viper.Viper
+	mustList  []*vxFlags
+	rangeList []*vxFlags
+	mutex     sync.Mutex
 	//flags *pflag.FlagSet
 }
 
@@ -33,6 +41,8 @@ func New() *ViperX {
 }
 
 func (o *ViperX) BindFlags(fs *pflag.FlagSet) error {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
 	//Make sure the default value in flag also make sense
 	fs.VisitAll(func(f *pflag.Flag) {
 		if !f.Changed && len(f.Value.String()) != 0 {
@@ -43,12 +53,12 @@ func (o *ViperX) BindFlags(fs *pflag.FlagSet) error {
 	return nil
 }
 
-// BindEnvs sets up environment variables to override configuration values.
-// It takes a prefix for environment variable names, a delimiter for configuration keys, and an environment delimiter for replacing in keys.
-func BindEnvs(prefix, keyDelimiter, envDelimiter string) {
-	vx.v.AutomaticEnv() // automatically override values with those from the environment
-	vx.v.SetEnvPrefix(prefix)
-	vx.v.SetEnvKeyReplacer(strings.NewReplacer(keyDelimiter, envDelimiter))
+func (o *ViperX) BindEnvs(prefix, keyDelimiter, envDelimiter string) {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+	o.v.AutomaticEnv() // automatically override values with those from the environment
+	o.v.SetEnvPrefix(prefix)
+	o.v.SetEnvKeyReplacer(strings.NewReplacer(keyDelimiter, envDelimiter))
 
 	prefix = prefix + "_"
 
@@ -62,12 +72,88 @@ func BindEnvs(prefix, keyDelimiter, envDelimiter string) {
 			// Bind the current environment variable
 			envKey := key[len(prefix):]                                         // Remove the prefix
 			configKey := strings.ReplaceAll(envKey, envDelimiter, keyDelimiter) // Replace the delimiter, commonly changing '_' to '.'
-			_ = vx.v.BindEnv(configKey)
+			_ = o.v.BindEnv(configKey)
 
 			// Optionally set a default value to ensure it appears in AllKeys()
-			// vx.v.SetDefault(configKey, "")
+			// o.v.SetDefault(configKey, "")
 		}
 	}
+}
+
+func (o *ViperX) Parse(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption) error {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+	return o.parse(fs, reflect.TypeOf(cfg), getMapStructureTagName(opts...))
+}
+
+func doValidate(vld *validator.Validate, in any, rangeRequired string) (msg string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprintf("invalid vx_range '%s', should be 'oneof=apple banana' or 'gte=5,lte=10'", rangeRequired)
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+
+	err = vld.Var(in, rangeRequired)
+	if err != nil {
+		msg = fmt.Sprintf("invalid value '%v', should follow vx_range '%v'", in, rangeRequired)
+	} else {
+		err = nil
+	}
+
+	return
+}
+
+func (o *ViperX) Validate() error {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	var (
+		err           error
+		msg           string
+		foundMustErr  = false
+		foundRangeErr = false
+	)
+	vld := validator.New()
+	bf := bytes.NewBuffer(make([]byte, 256))
+
+	for _, mustItem := range o.mustList {
+		if reflect.ValueOf(viper.Get(mustItem.Path)).IsZero() {
+			if !foundMustErr {
+				bf.WriteString("configure items without value:\n")
+				foundMustErr = true
+			}
+			bf.WriteString("  " + mustItem.String() + "\n")
+		}
+	}
+
+	for _, rangeItem := range o.rangeList {
+		v := viper.Get(rangeItem.Path)
+
+		if msg, err = doValidate(vld, v, rangeItem.Range); err != nil {
+			if !foundRangeErr {
+				bf.WriteString("configure items with invalid value:\n")
+				foundRangeErr = true
+			}
+			bf.WriteString(fmt.Sprintf("  {\"Path\":\"%s\", \"Message\":\"%s\", \"RawError\":\"%s\"}\n", rangeItem.Path, msg, err.Error()))
+		}
+	}
+
+	//Do release
+	o.mustList = nil
+	o.rangeList = nil
+
+	if foundMustErr || foundRangeErr {
+		return errors.New(bf.String())
+	}
+
+	return nil
+}
+
+// BindEnvs sets up environment variables to override configuration values.
+// It takes a prefix for environment variable names, a delimiter for configuration keys, and an environment delimiter for replacing in keys.
+func BindEnvs(prefix, keyDelimiter, envDelimiter string) {
+	vx.BindEnvs(prefix, keyDelimiter, envDelimiter)
 }
 
 // Unmarshal decodes the configuration into a struct using viper.Unmarshal.
@@ -87,7 +173,7 @@ func BindAllFlags(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption)
 		return fs, err
 	}
 
-	if err := parse(fs, reflect.TypeOf(cfg), getMapStructureTagName(opts...)); err != nil {
+	if err := vx.Parse(fs, cfg, opts...); err != nil {
 		return nil, err
 	}
 
@@ -106,12 +192,7 @@ func ParseConfig(cfg any, envPrefix string, cfgFile string, opts ...viper.Decode
 		return err
 	}
 
-	return validate(cfg)
-}
-
-// validate check whether the value is among the vx_range
-func validate(cfg any) error {
-	return nil
+	return vx.Validate()
 }
 
 // InitConfigFile initializes configuration files using viper.

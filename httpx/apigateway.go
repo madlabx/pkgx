@@ -20,8 +20,9 @@ const (
 
 type LogConfig struct {
 	LogFile        log.FileConfig
-	Level          string `vx_default:"info"`
-	BodyBufferSize int64  `vx_default:"4096"`
+	Level          string          `vx_default:"info"`
+	Timing         AccessLogTiming `vx_default:"both"`
+	BodyBufferSize int64           `vx_default:"4096"`
 	// Tags to construct the Logger format.
 	//
 	// - time_unix
@@ -50,13 +51,16 @@ type LogConfig struct {
 	// - form:<NAME>
 	// - body_in (request body)
 	// - body_out (response body)
-	ContentFormat string `vx_default:"${time_custom} ACCE ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${error}\n"`
+	//ContentFormatBefore string `vx_default:"${time_custom} BEF ${method} ${uri} ${host} ${remote_ip} ${bytes_in}"`
+	ContentFormatBefore string
+	//ContentFormatAfter  string `vx_default:"${time_custom} AFT ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${error}"`
+	ContentFormatAfter string
 }
 
 type ApiGateway struct {
-	ctx         context.Context
+	ctx context.Context
 	*echo.Echo
-	Logger      *logrus.Logger
+	Logger      *log.Logger
 	LogConf     *LogConfig
 	EntryFormat logrus.Formatter
 }
@@ -135,10 +139,12 @@ func (agw *ApiGateway) configEcho() {
 			//}
 			return true
 		},
-		Format:           agw.LogConf.ContentFormat,
+		FormatAfter:      agw.LogConf.ContentFormatAfter,
+		FormatBefore:     agw.LogConf.ContentFormatBefore,
 		CustomTimeFormat: "2006/01/02 15:04:05.000",
 		Output:           agw.Logger.Out,
 		bodyBufferSize:   agw.LogConf.BodyBufferSize,
+		Timing:           agw.LogConf.Timing,
 	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{

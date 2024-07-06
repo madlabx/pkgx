@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/madlabx/pkgx/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -16,9 +17,30 @@ var (
 	tagViperXFieldName         = "vx_name"
 	tagViperXFieldDefault      = "vx_default"
 	tagViperXFieldDescription  = "vx_desc"
+	tagViperXFieldMust         = "vx_must"
 	tagViperXFieldShort        = "vx_short"
-	//tagViperXFieldRange        = "vx_range"
+	tagViperXFieldRange        = "vx_range"
 )
+
+const VxFlagsRangeSeparator = ","
+
+type vxFlags struct {
+	Path    string
+	Name    string `json:",omitempty"`
+	Short   string `json:",omitempty"`
+	Default string `json:",omitempty"`
+	Desc    string `json:",omitempty"`
+	Must    string `json:",omitempty"`
+	Range   string `json:",omitempty"`
+}
+
+func (vx *vxFlags) SetPFlag(fs *pflag.FlagSet) {
+	fs.StringP(vx.Name, vx.Short, vx.Default, vx.Desc)
+}
+
+func (vx *vxFlags) String() string {
+	return utils.ToString(vx)
+}
 
 func getMapStructureTagName(opts ...viper.DecoderConfigOption) string {
 	c := &mapstructure.DecoderConfig{}
@@ -43,28 +65,35 @@ func parseTypeName(t reflect.StructField, tagName string) string {
 	}
 }
 
-func parseFlatStyle(vxTag string) (string, string, string, string) {
+func parseFlatStyle(vxTag string) vxFlags {
 	kv := strings.Split(vxTag, ";")
-	if len(kv) == 4 {
-		return kv[0], kv[1], kv[2], kv[3]
+	if len(kv) == 6 {
+		//TODO prompt some error
+		return vxFlags{Name: kv[0], Short: kv[1], Default: kv[2], Desc: kv[3], Must: kv[4], Range: kv[5]}
 	} else {
-		return "", "", "", ""
+		return vxFlags{}
 	}
 }
 
-func parseFlagOpts(tag reflect.StructTag) (string, string, string, string) {
+func parseFlagOpts(tag reflect.StructTag) vxFlags {
 	vxTagString, ok := tag.Lookup(tagViperX)
 	if ok {
 		//Address  string `vx_tag:"address;a;127.0.0.1;address to listen on"`
 		return parseFlatStyle(vxTagString)
 	} else {
 		//Address  string `vx_name:"address" vx_short:"a" vx_default:"127.0.0.1" vx_desc:"address to listen on"`
-		return tag.Get(tagViperXFieldName), tag.Get(tagViperXFieldShort), tag.Get(tagViperXFieldDefault), tag.Get(tagViperXFieldDescription)
+		return vxFlags{
+			Name:    tag.Get(tagViperXFieldName),
+			Short:   tag.Get(tagViperXFieldShort),
+			Default: tag.Get(tagViperXFieldDefault),
+			Desc:    tag.Get(tagViperXFieldDescription),
+			Must:    tag.Get(tagViperXFieldMust),
+			Range:   tag.Get(tagViperXFieldRange)}
 	}
 }
 
 // TODO 是否可以用DecodeHookFunc更优雅地实现?
-func parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) error {
+func (o *ViperX) parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) error {
 	var (
 		err error
 	)
@@ -75,26 +104,30 @@ func parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) 
 		switch t.Type.Kind() {
 		case reflect.Struct: // Handle nested struct
 			if len(fieldName) == 0 {
-				err = parse(fs, t.Type, tagName, parts...)
+				err = o.parse(fs, t.Type, tagName, parts...)
 			} else {
-				err = parse(fs, t.Type, tagName, append(parts, fieldName)...)
+				err = o.parse(fs, t.Type, tagName, append(parts, fieldName)...)
 			}
 		default: // Handle leaf field
 			keyPath := strings.Join(append(parts, fieldName), ".")
-			vxName, vxShort, vxDefault, vxDesc := parseFlagOpts(t.Tag)
+			flags := parseFlagOpts(t.Tag)
+			flags.Path = keyPath
+			if flags.Name == "" {
+				flags.Name = keyPath
+			}
 
-			if len(vxName) == 0 {
-				fs.StringP(keyPath, vxShort, vxDefault, vxDesc)
-				if err = vx.v.BindPFlag(keyPath, fs.Lookup(keyPath)); err != nil {
-					return err
-				}
-				vx.v.SetDefault(keyPath, vxDefault)
-			} else {
-				fs.StringP(vxName, vxShort, vxDefault, vxDesc)
-				if err = vx.v.BindPFlag(keyPath, fs.Lookup(vxName)); err != nil {
-					return err
-				}
-				vx.v.SetDefault(keyPath, vxDefault)
+			flags.SetPFlag(fs)
+			if err = vx.v.BindPFlag(keyPath, fs.Lookup(flags.Name)); err != nil {
+				return err
+			}
+			vx.v.SetDefault(keyPath, flags.Default)
+
+			if flags.Must == "true" && flags.Default == "" {
+				o.mustList = append(o.mustList, &flags)
+			}
+
+			if flags.Range != "" {
+				o.rangeList = append(o.rangeList, &flags)
 			}
 		}
 	}

@@ -19,6 +19,16 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
+type AccessLogTiming string
+
+const (
+	defaultBufSize = 4096
+
+	AccessLogBeforeRun AccessLogTiming = "before"
+	AccessLogAfterRun  AccessLogTiming = "after"
+	AccessLogBoth      AccessLogTiming = "both"
+)
+
 type (
 	Filter func(echo.Context) bool
 
@@ -62,7 +72,9 @@ type (
 		// Example "${remote_ip} ${status}"
 		//
 		// Optional. Default value DefaultLoggerConfig.Format.
-		Format string `yaml:"format"`
+		FormatAfter  string `yaml:"format_after"`
+		FormatBefore string `yaml:"format_before"`
+		Timing       AccessLogTiming
 
 		// Optional. Default value DefaultLoggerConfig.CustomTimeFormat.
 		CustomTimeFormat string `yaml:"custom_time_format"`
@@ -71,29 +83,34 @@ type (
 		// Optional. Default value os.Stdout.
 		Output io.Writer
 
-		template       *fasttemplate.Template
+		templateAfter  *fasttemplate.Template
+		templateBefore *fasttemplate.Template
 		colorer        *color.Color
 		pool           *sync.Pool
 		bodyBufferSize int64
 	}
 )
 
-const defaultBufSize = 4096
-
 var (
 	// DefaultLoggerConfig is the default Logger middleware config.
 	DefaultLoggerConfig = LoggerConfig{
 		Skipper:       middleware.DefaultSkipper,
 		OutBodyFilter: DefaultOutBodyFilter,
-		Format: `{"time":"${time_rfc3339_nano}","id":"${id}","remote_ip":"${remote_ip}",` +
+		FormatBefore: `{"time":"${time_rfc3339_nano}","id":"${id}","remote_ip":"${remote_ip}",` +
+			`"host":"${host}","method":"${method}","uri":"${uri}","user_agent":"${user_agent}",` +
+			`,"bytes_in":${bytes_in}`,
+		FormatAfter: `{"time":"${time_rfc3339_nano}","id":"${id}","remote_ip":"${remote_ip}",` +
 			`"host":"${host}","method":"${method}","uri":"${uri}","user_agent":"${user_agent}",` +
 			`"status":${status},"error":"${error}","latency":${latency},"latency_human":"${latency_human}"` +
-			`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n",
-		CustomTimeFormat: "2006-01-02 15:04:05.00000",
+			`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}`,
+		CustomTimeFormat: "2006-01-02 15:04:05.000",
 		Output:           os.Stdout,
 		colorer:          color.New(),
 		bodyBufferSize:   defaultBufSize,
+		Timing:           AccessLogBoth,
 	}
+	configAccess *LoggerConfig
+	once         sync.Once
 )
 
 // DefaultOutBodyFilter returns false which processes the middleware.
@@ -101,26 +118,46 @@ func DefaultOutBodyFilter(echo.Context) bool {
 	return false
 }
 
-// Logger returns a middleware that logs HTTP requests.
-func Logger() echo.MiddlewareFunc {
-	return LoggerWithConfig(DefaultLoggerConfig)
-}
+//// Logger returns a middleware that logs HTTP requests.
+//func Logger() echo.MiddlewareFunc {
+//	return LoggerWithConfig(DefaultLoggerConfig)
+//}
 
-// LoggerWithConfig returns a Logger middleware with config.
-// See: `Logger()`.
 func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
+	once.Do(func() {
+		configAccess = &config
+	})
+
 	// Defaults
 	if config.Skipper == nil {
 		config.Skipper = DefaultLoggerConfig.Skipper
 	}
-	if config.Format == "" {
-		config.Format = DefaultLoggerConfig.Format
+
+	if config.FormatAfter == "" {
+		config.FormatAfter = DefaultLoggerConfig.FormatAfter
 	}
+
 	if config.Output == nil {
 		config.Output = DefaultLoggerConfig.Output
 	}
 
-	config.template = fasttemplate.New(config.Format, "${", "}")
+	if config.Timing == "" {
+		config.Timing = DefaultLoggerConfig.Timing
+	}
+
+	if config.Timing != AccessLogAfterRun {
+		if config.FormatBefore == "" {
+			config.FormatBefore = DefaultLoggerConfig.FormatBefore
+		}
+		config.templateBefore = fasttemplate.New(config.FormatBefore+"\n", "${", "}")
+	}
+
+	if config.Timing != AccessLogBeforeRun {
+		if config.FormatAfter == "" {
+			config.FormatAfter = DefaultLoggerConfig.FormatAfter
+		}
+		config.templateAfter = fasttemplate.New(config.FormatAfter+"\n", "${", "}")
+	}
 	config.colorer = color.New()
 	config.colorer.SetOutput(config.Output)
 	config.pool = &sync.Pool{
@@ -173,13 +210,7 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 				c.Response().Writer = writer
 			}
 
-			stop := time.Now()
-			buf := config.pool.Get().(*bytes.Buffer)
-			buf.Reset()
-			defer config.pool.Put(buf)
-
-			//Log after run
-			if _, err = config.template.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
+			loggingTemplate := func(buf *bytes.Buffer, tag string) (int, error) {
 				switch tag {
 				case "time_unix":
 					return buf.WriteString(strconv.FormatInt(time.Now().Unix(), 10))
@@ -217,18 +248,7 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 					return buf.WriteString(req.Referer())
 				case "user_agent":
 					return buf.WriteString(req.UserAgent())
-				case "status":
-					n := res.Status
-					s := config.colorer.Green(n)
-					switch {
-					case n >= 500:
-						s = config.colorer.Red(n)
-					case n >= 400:
-						s = config.colorer.Yellow(n)
-					case n >= 300:
-						s = config.colorer.Cyan(n)
-					}
-					return buf.WriteString(s)
+
 				case "bytes_in":
 					cl := req.Header.Get(echo.HeaderContentLength)
 					if cl == "" {
@@ -242,10 +262,34 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 					}
 					bytesIn, _ := strconv.Atoi(cl)
 					return buf.WriteString(loggingRequestBody(c, int64(bytesIn)))
+
+				case "latency":
+					l := time.Now().Sub(start)
+					return buf.WriteString(strconv.FormatInt(int64(l), 10))
+				case "latency_human":
+					return buf.WriteString(time.Now().Sub(start).String())
+				case "bytes_out":
+					return buf.WriteString(strconv.FormatInt(res.Size, 10))
+				case "body_out":
+					return buf.WriteString(loggingResponseBody(c, doPrintBodyOut, res.Size, respBody.Bytes()))
+				case "status":
+					n := res.Status
+					s := config.colorer.Green(n)
+					switch {
+					case n >= 500:
+						s = config.colorer.Red(n)
+					case n >= 400:
+						s = config.colorer.Yellow(n)
+					case n >= 300:
+						s = config.colorer.Cyan(n)
+					}
+					return buf.WriteString(s)
 				default:
 					switch {
 					case strings.HasPrefix(tag, "header_in:"):
 						return buf.Write([]byte(c.Request().Header.Get(tag[11:])))
+					case strings.HasPrefix(tag, "header_out:"):
+						return buf.Write([]byte(c.Response().Header().Get(tag[12:])))
 					case strings.HasPrefix(tag, "query:"):
 						return buf.Write([]byte(c.QueryParam(tag[6:])))
 					case strings.HasPrefix(tag, "form:"):
@@ -258,40 +302,42 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 					}
 				}
 				return 0, nil
-			}); err != nil {
-				return
 			}
-			if _, err = config.Output.Write(buf.Bytes()); err != nil {
-				return
+
+			buf := config.pool.Get().(*bytes.Buffer)
+			defer config.pool.Put(buf)
+
+			if config.templateBefore != nil {
+				//Log after run
+				buf.Reset()
+				if _, err = config.templateBefore.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
+					return loggingTemplate(buf, tag)
+				}); err != nil {
+					return
+				}
+				if _, err = config.Output.Write(buf.Bytes()); err != nil {
+					return
+				}
 			}
 
 			if err = next(c); err != nil {
 				c.Error(err)
 			}
 
+			if config.templateAfter == nil {
+				return
+			}
+
 			//Log after run
-			if _, err = config.template.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
-				switch tag {
-				case "latency":
-					l := stop.Sub(start)
-					return buf.WriteString(strconv.FormatInt(int64(l), 10))
-				case "latency_human":
-					return buf.WriteString(stop.Sub(start).String())
-				case "bytes_out":
-					return buf.WriteString(strconv.FormatInt(res.Size, 10))
-				case "body_out":
-					return buf.WriteString(loggingResponseBody(c, doPrintBodyOut, res.Size, respBody.Bytes()))
-				default:
-					switch {
-					case strings.HasPrefix(tag, "header_out:"):
-						return buf.Write([]byte(c.Response().Header().Get(tag[12:])))
-					}
-				}
-				return 0, nil
+			buf.Reset()
+			if _, err = config.templateAfter.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
+				return loggingTemplate(buf, tag)
 			}); err != nil {
 				return
 			}
+
 			_, err = config.Output.Write(buf.Bytes())
+
 			return
 		}
 	}
