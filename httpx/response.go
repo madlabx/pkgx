@@ -43,11 +43,9 @@ func (jr *JsonResponse) Is(target error) bool {
 
 func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
-	jrClone := &JsonResponse{}
-	jrClone.clone(jr)
-
-	jrClone.Message = jrClone.Cause().Error()
-	return utils.ToString(jrClone)
+	njr := jr.copy()
+	njr.Message = njr.Cause().Error()
+	return utils.ToString(njr)
 }
 
 func (jr *JsonResponse) flatErrString() string {
@@ -99,23 +97,24 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 		depth = depths[0]
 	}
 
-	if jr.IsOK() {
+	njr := jr.copy()
+	if njr.IsOK() {
 		//original jr is OK, update with new error
-		jr.clone(Wrap(err))
+		return Wrap(err)
 	} else {
-		if jr.cause == nil {
+		if njr.cause == nil {
 			newJr := &JsonResponse{}
 			if errors.As(err, &newJr) {
-				jr.cause = newJr.Cause()
+				njr.cause = newJr.Cause()
 			} else {
-				jr.cause = err
+				njr.cause = err
 			}
 		} else {
-			jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, err.Error())
+			njr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, err.Error())
 		}
 	}
 
-	return jr
+	return njr
 }
 
 // WithErrorf to be simple, do overwrite
@@ -127,16 +126,15 @@ func (jr *JsonResponse) WithErrorf(format string, a ...any) error {
 	depth := 1
 	if jr.IsOK() {
 		//original jr is OK, update with new error
-		jr.clone(Wrap(errors.Errorf(format, a...)))
+		return Wrap(errors.Errorf(format, a...))
 	} else {
-		if jr.cause == nil {
-			jr.cause = errors.Errorf(format, a...)
-		} else {
-			jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, format, a...)
+		njr := jr.copy()
+		if njr.cause == nil {
+			njr.cause = errors.Errorf(format, a...)
 		}
+		njr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, format, a...)
+		return njr
 	}
-
-	return jr
 }
 
 // WithResult to be simple, do overwrite
@@ -154,12 +152,18 @@ func (jr *JsonResponse) clone(obj *JsonResponse) {
 	jr.Result = obj.Result
 }
 
+func (jr *JsonResponse) copy() *JsonResponse {
+	//TODO whether need deep copy cause... no need to do, normally error type will not change
+	obj := *jr
+	return &obj
+}
+
 func (jr *JsonResponse) cjson(c echo.Context) error {
 	if jr.Code == "" && jr.Errno == 0 && jr.Result == nil {
 		return c.NoContent(jr.Status)
 	}
 
-	if jr.Message == "" {
+	if jr.Message == "" && jr.Result == nil {
 		jr.Message = jr.Error()
 	}
 
