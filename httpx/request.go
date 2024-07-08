@@ -1,10 +1,10 @@
 package httpx
 
 import (
-	"net/http"
 	"reflect"
 
 	"github.com/labstack/echo"
+	"github.com/madlabx/pkgx/errors"
 )
 
 func ValidateMust(input interface{}, keys ...string) error {
@@ -16,7 +16,7 @@ func ValidateMust(input interface{}, keys ...string) error {
 			field := t.Field(i)
 			value := v.Field(i)
 			if field.Name == key && value.IsZero() {
-				return errStrResp(http.StatusBadRequest, errCodeDic.GetBadRequest(), "Need "+key)
+				return errors.New("Need " + key)
 			}
 		}
 	}
@@ -28,7 +28,7 @@ func QueryMustParam(c echo.Context, key string) (string, error) {
 	var err error
 	value := c.QueryParam(key)
 	if len(value) == 0 {
-		err = errStrResp(http.StatusBadRequest, errCodeDic.GetBadRequest(), "Missing "+key)
+		err = errors.New("Missing " + key)
 	}
 
 	return value, err

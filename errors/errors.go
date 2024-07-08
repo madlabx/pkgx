@@ -99,7 +99,6 @@ import (
 	"fmt"
 
 	"emperror.dev/errors"
-	"github.com/madlabx/pkgx/log"
 	pkgerrors "github.com/pkg/errors"
 )
 
@@ -144,11 +143,28 @@ func WrapWithRelativeStackDepth(err error, depth int) error {
 	return errors.WithStackDepthIf(err, stackDepth+depth)
 }
 
+type WithMsgfIf interface {
+	WithErrorf(format string, args ...interface{}) error
+}
+
 // Wrapf returns an error annotating err with a stack trace
 // at the point Wrapf is called, and the format specifier.
 // If err is nil, Wrapf returns nil.
 func Wrapf(err error, format string, args ...interface{}) error {
+	if err == nil {
+		return nil
+	}
+
+	werr, ok := err.(WithMsgfIf)
+	if ok {
+		return werr.WithErrorf(format, args...)
+	}
+
 	return errors.WithStackDepthIf(pkgerrors.WithMessagef(err, format, args...), stackDepth)
+}
+
+func WrapfWithRelativeStackDepth(err error, depth int, format string, args ...any) error {
+	return errors.WithStackDepthIf(pkgerrors.WithMessagef(err, format, args...), stackDepth+depth)
 }
 
 // Cause returns the underlying cause of the error, if possible.
@@ -164,10 +180,4 @@ func Wrapf(err error, format string, args ...interface{}) error {
 // investigation.
 func Cause(err error) error {
 	return errors.Cause(err)
-}
-
-func CheckFatalError(err error, megs ...string) {
-	if err != nil {
-		log.Fatalf("Panic: %+v, Message:%v", WithStack(err), megs)
-	}
 }

@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo"
-	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/httpx"
 	"github.com/madlabx/pkgx/log"
 	"github.com/madlabx/pkgx/viperx"
@@ -76,7 +75,6 @@ func main() {
 	agw, err := httpx.NewApiGateway(context.Background(), &httpx.LogConfig{
 		//Output: "access.log",
 	}, nil)
-	errors.CheckFatalError(err)
 
 	_ = log.SetLevelStr(viperx.GetString("sys.loglevel", "debug"))
 
