@@ -65,6 +65,9 @@ func (jr *JsonResponse) flatErrString() string {
 }
 
 func (jr *JsonResponse) Error() string {
+	if jr.Cause() == nil {
+		return ""
+	}
 	return jr.Cause().Error()
 }
 
