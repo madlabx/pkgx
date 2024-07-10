@@ -44,7 +44,7 @@ func (jr *JsonResponse) Is(target error) bool {
 func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
 	njr := jr.copy()
-	njr.Message = njr.Cause().Error()
+	njr.Message = njr.Error()
 	return utils.ToString(njr)
 }
 
@@ -65,10 +65,15 @@ func (jr *JsonResponse) flatErrString() string {
 }
 
 func (jr *JsonResponse) Error() string {
-	if jr.Cause() == nil {
-		return ""
+	if jr.cause != nil {
+		return jr.cause.Error()
 	}
-	return jr.Cause().Error()
+
+	if !jr.IsOK() {
+		return jr.flatErrString()
+	}
+
+	return ""
 }
 
 // nolint: errcheck
