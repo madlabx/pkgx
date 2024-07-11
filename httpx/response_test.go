@@ -17,6 +17,10 @@ func TestErrorIs(t *testing.T) {
 	isSameError := errors.Is(newErr, rawErr)
 	require.True(t, isSameError)
 	isSameError = errors.Is(rawErr, newErr)
+	require.False(t, isSameError)
+
+	//should not be circle
+	isSameError = errors.Is(newErr, newErr)
 	require.True(t, isSameError)
 }
 
