@@ -43,7 +43,7 @@ func (jr *JsonResponse) Is(target error) bool {
 
 func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
-	njr := jr.copy()
+	njr := jr.Copy()
 	njr.Message = njr.Error()
 	return utils.ToString(njr)
 }
@@ -105,24 +105,23 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 		depth = depths[0]
 	}
 
-	njr := jr.copy()
-	if njr.IsOK() {
+	if jr.IsOK() {
 		//original jr is OK, update with new error
 		return Wrap(err)
 	} else {
-		if njr.cause == nil {
+		if jr.cause == nil {
 			newJr := &JsonResponse{}
 			if errors.As(err, &newJr) {
-				njr.cause = newJr.Cause()
+				jr.cause = newJr.Cause()
 			} else {
-				njr.cause = err
+				jr.cause = err
 			}
 		} else {
-			njr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, err.Error())
+			jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, err.Error())
 		}
 	}
 
-	return njr
+	return jr
 }
 
 // WithErrorf to be simple, do overwrite
@@ -136,12 +135,11 @@ func (jr *JsonResponse) WithErrorf(format string, a ...any) error {
 		//original jr is OK, update with new error
 		return Wrap(errors.Errorf(format, a...))
 	} else {
-		njr := jr.copy()
-		if njr.cause == nil {
-			njr.cause = errors.Errorf(format, a...)
+		if jr.cause == nil {
+			jr.cause = errors.Errorf(format, a...)
 		}
-		njr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, format, a...)
-		return njr
+		jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, format, a...)
+		return jr
 	}
 }
 
@@ -160,7 +158,7 @@ func (jr *JsonResponse) clone(obj *JsonResponse) {
 	jr.Result = obj.Result
 }
 
-func (jr *JsonResponse) copy() *JsonResponse {
+func (jr *JsonResponse) Copy() *JsonResponse {
 	//TODO whether need deep copy cause... no need to do, normally error type will not change
 	obj := *jr
 	return &obj

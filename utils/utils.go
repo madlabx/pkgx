@@ -89,11 +89,19 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 	}
 }
 
-func ToString(a interface{}) string {
+func ToString(a any) string {
 	resultJson, _ := json.Marshal(a)
 	return string(resultJson)
 }
-
+func ToPrettyString(a any) string {
+	// 使用 json.MarshalIndent 进行美化的JSON编码
+	resultJson, err := json.MarshalIndent(a, "", "    ") // 第二个参数是前缀，第三个参数是缩进
+	if err != nil {
+		// 如果发生错误，返回错误信息
+		return err.Error()
+	}
+	return string(resultJson)
+}
 func CopyFile(sourceFile, destinationFile string) error {
 	input, err := ioutil.ReadFile(sourceFile)
 	if err != nil {
