@@ -41,10 +41,15 @@ func (jr *JsonResponse) Is(target error) bool {
 	return false
 }
 
+//JsonString won't output
 func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
 	njr := jr.Copy()
-	njr.Message = njr.Error()
+
+	if njr.Message == "" && njr.Result == nil {
+		njr.Message = njr.Error()
+	}
+
 	return utils.ToString(njr)
 }
 
@@ -52,6 +57,10 @@ func (jr *JsonResponse) flatErrString() string {
 	var builder strings.Builder
 	if jr.Code != "" {
 		builder.WriteString(fmt.Sprintf("Code:%v, Errno:%v", jr.Code, jr.Errno))
+	}
+
+	if jr.Message != "" {
+		builder.WriteString(fmt.Sprintf(", Message:%v", jr.Message))
 	}
 
 	if jr.Result != nil {
@@ -64,10 +73,13 @@ func (jr *JsonResponse) flatErrString() string {
 	return builder.String()
 }
 
+//Error output err at first, then Message, then Code/ErrnoE
 func (jr *JsonResponse) Error() string {
 	if jr.cause != nil {
 		return jr.cause.Error()
 	}
+
+	if jr.Message != "" {return jr.Message}
 
 	if !jr.IsOK() {
 		return jr.flatErrString()
@@ -94,7 +106,22 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 	}
 }
 
-// WithError set jr.cause, to be simple, do overwrite
+// WithMessagef append Message, won't impact IsOK()
+func (jr *JsonResponse) WithMessagef(format string, a ...any) error {
+	if format == "" {
+		return jr
+	}
+
+	if jr.Message== "" {
+		jr.Message = fmt.Sprintf(format, a...)
+	} else {
+		jr.Message += fmt.Sprintf(","+format, a...)
+	}
+
+	return jr
+}
+
+// WithError to be simple, do overwrite err, will impact IsOK()
 func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	if err == nil {
 		return jr
@@ -124,7 +151,7 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	return jr
 }
 
-// WithErrorf to be simple, do overwrite
+// WithErrorf to be simple, do overwrite err, will impact IsOK()
 func (jr *JsonResponse) WithErrorf(format string, a ...any) error {
 	if format == "" {
 		return jr
