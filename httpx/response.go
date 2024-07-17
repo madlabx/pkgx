@@ -17,6 +17,8 @@ func init() {
 	errCodeDic = &errcodex.DefaultErrCodeDic{}
 }
 
+var _ errcodex.ErrorCodeIf = &JsonResponse{}
+
 // JsonResponse should be:
 type JsonResponse struct {
 	cause error
@@ -31,6 +33,18 @@ type JsonResponse struct {
 	Result    any    `json:"Result,omitempty"`
 }
 
+func (jr *JsonResponse) GetHttpStatus() int {
+	return jr.Status
+}
+
+func (jr *JsonResponse) GetCode() string {
+	return jr.Code
+}
+
+func (jr *JsonResponse) GetErrno() int {
+	return jr.Errno
+}
+
 // return true while Code is same
 func (jr *JsonResponse) Is(target error) bool {
 	var ec errcodex.ErrorCodeIf
@@ -41,7 +55,7 @@ func (jr *JsonResponse) Is(target error) bool {
 	return false
 }
 
-//JsonString won't output
+// JsonString won't output
 func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
 	njr := jr.Copy()
@@ -73,13 +87,15 @@ func (jr *JsonResponse) flatErrString() string {
 	return builder.String()
 }
 
-//Error output err at first, then Message, then Code/ErrnoE
+// Error output err at first, then Message, then flatErrString
 func (jr *JsonResponse) Error() string {
 	if jr.cause != nil {
 		return jr.cause.Error()
 	}
 
-	if jr.Message != "" {return jr.Message}
+	if jr.Message != "" {
+		return jr.Message
+	}
 
 	if !jr.IsOK() {
 		return jr.flatErrString()
@@ -112,7 +128,7 @@ func (jr *JsonResponse) WithMessagef(format string, a ...any) error {
 		return jr
 	}
 
-	if jr.Message== "" {
+	if jr.Message == "" {
 		jr.Message = fmt.Sprintf(format, a...)
 	} else {
 		jr.Message += fmt.Sprintf(","+format, a...)
