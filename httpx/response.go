@@ -284,7 +284,7 @@ func Wrap(err error) *JsonResponse {
 	case errors.As(err, &eh):
 		jr = &JsonResponse{
 			Status: eh.Code,
-			Code:   http.StatusText(eh.Code),
+			Code:   TrimHttpStatusText(eh.Code),
 			Errno:  eh.Code,
 			cause:  errors.WrapWithRelativeStackDepth(eh, 1),
 		}
@@ -295,7 +295,7 @@ func Wrap(err error) *JsonResponse {
 	default:
 		jr = &JsonResponse{
 			Status: http.StatusInternalServerError,
-			Code:   http.StatusText(http.StatusInternalServerError),
+			Code:   TrimHttpStatusText(http.StatusInternalServerError),
 			Errno:  http.StatusInternalServerError,
 			cause:  errors.WrapWithRelativeStackDepth(err, 1),
 		}
@@ -333,9 +333,8 @@ func StatusResp(status int) *JsonResponse {
 	}
 }
 
-//
-//func TrimHttpStatusText(status int) string {
-//	trimmedSpace := strings.Replace(http.StatusText(status), " ", "", -1)
-//	trimmedSpace = strings.Replace(trimmedSpace, "-", "", -1)
-//	return trimmedSpace
-//}
+func TrimHttpStatusText(status int) string {
+	trimmedSpace := strings.Replace(http.StatusText(status), " ", "", -1)
+	trimmedSpace = strings.Replace(trimmedSpace, "-", "", -1)
+	return trimmedSpace
+}
