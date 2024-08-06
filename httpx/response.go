@@ -273,6 +273,9 @@ func Wrap(err error) *JsonResponse {
 	)
 	switch {
 	case errors.As(err, &jr):
+		if jr.Status == 0 {
+			jr.Status = jr.Errno
+		}
 		return jr.WithStack(1)
 	case errors.As(err, &ec):
 		jr = &JsonResponse{
