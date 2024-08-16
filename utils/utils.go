@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/csv"
@@ -11,6 +12,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +20,6 @@ import (
 	"unicode"
 
 	"github.com/madlabx/pkgx/log"
-
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -78,10 +79,10 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 			structToMapStrStrInternal(fieldI.Interface(), m)
 		case reflect.String:
 			m[objT.Field(i).Name] = fieldI.String()
-		case reflect.Int,reflect.Int64:
+		case reflect.Int, reflect.Int64:
 			m[objT.Field(i).Name] = fmt.Sprintf("%v", fieldI.Int())
 		default:
-			if fieldI.IsNil(){
+			if fieldI.IsNil() {
 				continue
 			}
 			m[objT.Field(i).Name] = fmt.Sprintf("%v", fieldI.Interface())
@@ -167,6 +168,7 @@ func GenerateKey() ([]byte, error) {
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
 func RandomString(size int) string {
 
 	once.Do(func() {
@@ -465,7 +467,6 @@ func InRange[T comparable](x T, ss ...T) bool {
 	return false
 }
 
-
 func convertStringToFieldType(fieldType reflect.Kind, filterValue string) (interface{}, error) {
 	switch fieldType {
 	case reflect.String:
@@ -506,4 +507,29 @@ func ConvertFilterValueToFieldType(obj interface{}, filterField string, filterVa
 		convertedValues[i] = convertedValue
 	}
 	return convertedValues, nil
+}
+
+// GetSignString  ignore Sign in r
+func GetSignString(r any) string {
+	var buf bytes.Buffer
+
+	params := StructToMapStrStr(r)
+	signParamKeys := make([]string, 0, len(params))
+	for k, v := range params {
+		if k != "Sign" && v != "" {
+			signParamKeys = append(signParamKeys, k)
+		}
+	}
+	sort.Strings(signParamKeys)
+
+	for i, key := range signParamKeys {
+		if i != 0 {
+			buf.WriteString("&")
+		}
+		buf.WriteString(key)
+		buf.WriteString("=")
+		buf.WriteString(params[key])
+	}
+
+	return buf.String()
 }
