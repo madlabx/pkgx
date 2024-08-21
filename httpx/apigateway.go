@@ -55,6 +55,8 @@ type LogConfig struct {
 	ContentFormatBefore string
 	//ContentFormatAfter  string `vx_default:"${time_custom} AFT ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${error}"`
 	ContentFormatAfter string
+
+	Skipper middleware.Skipper
 }
 
 type ApiGateway struct {
@@ -145,6 +147,7 @@ func (agw *ApiGateway) configEcho() {
 		Output:           agw.Logger.Out,
 		bodyBufferSize:   agw.LogConf.BodyBufferSize,
 		Timing:           agw.LogConf.Timing,
+		Skipper:          agw.LogConf.Skipper,
 	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
