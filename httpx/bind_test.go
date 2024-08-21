@@ -436,6 +436,24 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: errors.New("missing parameter Quality.Level"),
 		},
+		{
+			testName:     "TestArrayEmpty",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Paths":[], "Quality":{"Level":1.0}}`)),
+			structFunc: func(parsed any) any {
+				type inputStruct struct {
+					//Bandwidth []uint64 `hx_must:"false" hx_range:"0-10"`
+					Paths []string `hx_must:"true"`
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				//as(parsed.(*inputStruct).Bandwidths, []uint64{1, 2, 3, 4})
+				return nil
+			},
+
+			expectedError: errors.New("missing parameter Paths"),
+		},
 		// Add more test cases as needed.
 	}
 

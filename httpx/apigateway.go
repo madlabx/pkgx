@@ -55,16 +55,16 @@ type LogConfig struct {
 	ContentFormatBefore string
 	//ContentFormatAfter  string `vx_default:"${time_custom} AFT ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${error}"`
 	ContentFormatAfter string
-
-	Skipper middleware.Skipper
 }
 
 type ApiGateway struct {
 	ctx context.Context
 	*echo.Echo
-	Logger      *log.Logger
-	LogConf     *LogConfig
-	EntryFormat logrus.Formatter
+	Logger            *log.Logger
+	LogConf           *LogConfig
+	EntryFormat       logrus.Formatter
+	loggerSkipper     middleware.Skipper
+	bodyLoggerSkipper middleware.Skipper
 }
 
 func NewApiGateway(pCtx context.Context, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
@@ -80,11 +80,19 @@ func NewApiGateway(pCtx context.Context, lc *LogConfig, logFormat logrus.Formatt
 		return nil, err
 	}
 
-	agw.configEcho()
 	return agw, nil
 }
 
+func (agw *ApiGateway) SetLoggerSkipper(s middleware.Skipper) {
+	agw.loggerSkipper = s
+}
+
+func (agw *ApiGateway) SetBodyLoggerSkipper(s middleware.Skipper) {
+	agw.bodyLoggerSkipper = s
+}
+
 func (agw *ApiGateway) Run(ip, port string) error {
+	agw.configEcho()
 	return agw.startEcho(fmt.Sprintf("%s:%s", ip, port))
 }
 
@@ -131,23 +139,27 @@ func (agw *ApiGateway) configEcho() {
 		e.Logger.SetLevel(labstacklog.INFO)
 	}
 
+	bodyFilter := func(c echo.Context) bool {
+		//文件上传下载不要打印
+		//return c.Request().Method == http.MethodPost
+		//if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
+		//	strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
+		//	return true
+		//}
+		return true
+	}
+	if agw.bodyLoggerSkipper != nil {
+		bodyFilter = agw.bodyLoggerSkipper
+	}
 	e.Use(LoggerWithConfig(LoggerConfig{
-		OutBodyFilter: func(c echo.Context) bool {
-			//文件上传下载不要打印
-			//return c.Request().Method == http.MethodPost
-			//if strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/download_file") ||
-			//	strings.Contains(c.Request().URL.Path, "/v1/file_service/obj/upload_file") {
-			//	return true
-			//}
-			return true
-		},
+		OutBodyFilter:    bodyFilter,
 		FormatAfter:      agw.LogConf.ContentFormatAfter,
 		FormatBefore:     agw.LogConf.ContentFormatBefore,
 		CustomTimeFormat: "2006/01/02 15:04:05.000",
 		Output:           agw.Logger.Out,
 		bodyBufferSize:   agw.LogConf.BodyBufferSize,
 		Timing:           agw.LogConf.Timing,
-		Skipper:          agw.LogConf.Skipper,
+		Skipper:          agw.loggerSkipper,
 	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
