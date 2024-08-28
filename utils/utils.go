@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"net"
 	"os"
 	"reflect"
 	"sort"
@@ -532,4 +533,53 @@ func GetSignString(r any) string {
 	}
 
 	return buf.String()
+}
+
+func GetIpAddr(deviceName string) (string, error) {
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+
+	for _, iface := range interfaces {
+		if iface.Name == deviceName {
+
+			addrs, err := iface.Addrs()
+			if err != nil {
+				log.Errorf("Ignore error getting addresses for interface %v, err:%v", iface.Name, err)
+				continue
+			}
+
+			for _, addr := range addrs {
+				// 检查并打印 IPv4 地址
+				if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+					return ipnet.IP.String(), nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("cannot find " + deviceName)
+}
+
+func HeadFirstLineFromFile(fileName string) (string, error) {
+	// Read the contents of the file.
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return "", err
+	}
+
+	// Split the content into lines.
+	lines := strings.Split(string(data), "\n")
+
+	// Get first non-empty line in the file.
+	for _, line := range lines {
+		if line != "" {
+			return line, nil
+		}
+	}
+
+	// If no non-empty line was found, return an error.
+	return "", fmt.Errorf("no valid content found in the file %s", fileName)
 }
