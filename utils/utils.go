@@ -91,6 +91,7 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 	}
 }
 
+// ToString return "null" if a == nil
 func ToString(a any) string {
 	resultJson, _ := json.Marshal(a)
 	return string(resultJson)

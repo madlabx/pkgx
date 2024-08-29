@@ -55,6 +55,14 @@ func (jr *JsonResponse) Is(target error) bool {
 	return false
 }
 
+func (jr *JsonResponse) CompleteMessage() *JsonResponse {
+	if jr.Message == "" && jr.Result == nil {
+		jr.Message = jr.Error()
+	}
+
+	return jr
+}
+
 // JsonString won't output
 func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
@@ -123,6 +131,7 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 }
 
 // WithMessagef append Message, won't impact IsOK()
+// in jr.cjson, if Message is not "", won't return cause.Error
 func (jr *JsonResponse) WithMessagef(format string, a ...any) error {
 	if format == "" {
 		return jr
@@ -137,7 +146,8 @@ func (jr *JsonResponse) WithMessagef(format string, a ...any) error {
 	return jr
 }
 
-// WithError to be simple, do overwrite err, will impact IsOK()
+// WithError if has cause, join with Error
+// in jr.cjson, if Message is nil, use cause.Error
 func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	if err == nil {
 		return jr
@@ -167,7 +177,8 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	return jr
 }
 
-// WithErrorf to be simple, do overwrite err, will impact IsOK()
+// WithErrorf if has cause, join with Errorf
+// in jr.cjson, if Message is nil, use cause.Error
 func (jr *JsonResponse) WithErrorf(format string, a ...any) error {
 	if format == "" {
 		return jr
@@ -212,11 +223,7 @@ func (jr *JsonResponse) cjson(c echo.Context) error {
 		return c.NoContent(jr.Status)
 	}
 
-	if jr.Message == "" && jr.Result == nil {
-		jr.Message = jr.Error()
-	}
-
-	err := c.JSON(jr.Status, jr)
+	err := c.JSON(jr.Status, jr.CompleteMessage())
 	if err != nil {
 		err = jr.Unwrap()
 	}
@@ -267,11 +274,15 @@ func Wrap(err error) *JsonResponse {
 		return nil
 	}
 	var (
+		ej JsonResponseWrapper
 		jr *JsonResponse
 		eh *echo.HTTPError
 		ec errcodex.ErrorCodeIf
 	)
 	switch {
+	case errors.As(err, &ej):
+		jr = ej.ToHttpXJsonResponse()
+		fallthrough
 	case errors.As(err, &jr):
 		if jr.Status == 0 {
 			jr.Status = jr.Errno

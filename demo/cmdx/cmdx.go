@@ -11,7 +11,7 @@ import (
 
 func main() {
 	cmdStr := strings.Join(os.Args[1:], " ")
-	err := cmdx.ExecBinaryCmd(cmdStr, context.Background())
+	err := cmdx.ExecBinaryCmd(context.Background(), cmdStr, nil)
 	if err != nil {
 		fmt.Println(err)
 	}

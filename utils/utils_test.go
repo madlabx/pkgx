@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFormat(t *testing.T) {
@@ -80,4 +82,9 @@ func TestFormat(t *testing.T) {
 	}
 
 	//fmt.Printf("%v\n", FormatToHtml([]string{"a1"}, []AaaT{data, data2}))
+}
+
+func TestToString(t *testing.T) {
+	rst := ToString(nil)
+	assert.Equal(t, "null", rst)
 }

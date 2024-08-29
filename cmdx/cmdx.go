@@ -2,29 +2,32 @@ package cmdx
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
-	"syscall"
+
+	"github.com/madlabx/pkgx/errors"
 )
 
-func ExecShellCmd(cmdStr string, pctx context.Context) error {
-	return ExecShellCmdWithOutput(cmdStr, pctx, os.Stdout)
+type Result struct {
+	Stdout   io.Writer
+	Stderr   io.Writer
+	ExitCode int
 }
 
-func ExecShellCmdWithOutput(cmdStr string, pCtx context.Context, output io.Writer) error {
+func ExecShellCmd(pCtx context.Context, cmdStr string, result *Result) error {
+	if len(cmdStr) == 0 {
+		return errors.New("empty cmdStr")
+	}
 	ctx := context.WithoutCancel(pCtx)
-
 	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", cmdStr)
 
-	return doExecCmd(cmd, output)
+	return doExecCmd(cmd, result)
 }
 
-func ExecBinaryCmd(cmdStr string, pCtx context.Context) error {
+func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Result) error {
 	if len(cmdStr) == 0 {
-		return nil
+		return errors.New("empty cmdStr")
 	}
 
 	ctx := context.WithoutCancel(pCtx)
@@ -33,29 +36,20 @@ func ExecBinaryCmd(cmdStr string, pCtx context.Context) error {
 	parts = parts[1:]
 	cmd := exec.CommandContext(ctx, head, parts...)
 
-	return doExecCmd(cmd, os.Stdout)
+	return doExecCmd(cmd, result)
 }
 
-// TODO remove debug logs
-func doExecCmd(cmd *exec.Cmd, output io.Writer) (err error) {
-	cmd.Stdout = output
-	cmd.Stderr = output
-	err = cmd.Start()
-	if err != nil {
-		return err
+func doExecCmd(cmd *exec.Cmd, cr *Result) error {
+	if cr != nil {
+		cmd.Stdout = cr.Stdout
+		cmd.Stderr = cr.Stderr
 	}
 
-	err = cmd.Wait()
-	if err != nil {
-		return err
+	err := cmd.Run()
+
+	if cr != nil {
+		cr.ExitCode = cmd.ProcessState.ExitCode()
 	}
 
-	if cmd.ProcessState != nil && cmd.Process != nil {
-		ret := cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-		if ret != 0 {
-			return fmt.Errorf("Exit with error code:%v", ret)
-		}
-	}
-
-	return nil
+	return errors.Wrap(err)
 }
