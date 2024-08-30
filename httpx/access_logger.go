@@ -264,8 +264,8 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 					return buf.WriteString(loggingRequestBody(c, int64(bytesIn)))
 
 				case "latency":
-					l := time.Now().Sub(start)
-					return buf.WriteString(strconv.FormatInt(int64(l), 10))
+					l := time.Now().Sub(start).Milliseconds()
+					return buf.WriteString(strconv.FormatInt(l, 10))
 				case "latency_human":
 					return buf.WriteString(time.Now().Sub(start).String())
 				case "bytes_out":
