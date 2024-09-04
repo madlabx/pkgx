@@ -37,6 +37,48 @@ func MapToStruct(m map[string]interface{}, s interface{}) {
 		}
 	}
 }
+func MarshalJSONIgnoreTag(js any) ([]byte, error) {
+	rv := reflect.ValueOf(js)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+
+	// 确保传入的是一个struct
+	if rv.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("expected a struct, got %s", rv.Kind())
+	}
+
+	// 创建一个map来存储原始成员名和值
+	data := make(map[string]interface{})
+	if err := collectFields(rv, data); err != nil {
+		return nil, err
+	}
+
+	// 使用json.Marshal序列化map
+	return json.Marshal(data)
+}
+
+// collectFields 递归收集结构体字段
+func collectFields(rv reflect.Value, data map[string]interface{}) error {
+	for i := 0; i < rv.NumField(); i++ {
+		field := rv.Field(i)
+		fieldType := rv.Type().Field(i)
+
+		// 检查是否是匿名字段
+		if fieldType.Anonymous {
+			// 递归处理匿名字段
+			if err := collectFields(field, data); err != nil {
+				return err
+			}
+		} else {
+			// 获取字段的名称
+			fieldName := fieldType.Name
+			// 将字段值添加到map中
+			data[fieldName] = field.Interface()
+		}
+	}
+	return nil
+}
 
 func StructToMap(obj interface{}) map[string]string {
 	m := make(map[string]string)

@@ -167,7 +167,7 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 			if errors.As(err, &newJr) {
 				jr.cause = newJr.Cause()
 			} else {
-				jr.cause = err
+				jr.cause = errors.WrapWithRelativeStackDepth(err, depth)
 			}
 		} else {
 			jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, err.Error())
@@ -222,7 +222,7 @@ func (jr *JsonResponse) cjson(c echo.Context) error {
 	if jr.Code == "" && jr.Errno == 0 && jr.Result == nil {
 		return c.NoContent(jr.Status)
 	}
-
+	
 	err := c.JSON(jr.Status, jr.CompleteMessage())
 	if err != nil {
 		err = jr.Unwrap()
