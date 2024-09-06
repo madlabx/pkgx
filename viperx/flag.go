@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/pflag"
@@ -93,10 +94,19 @@ func parseFlagOpts(tag reflect.StructTag) vxFlags {
 }
 
 // TODO 是否可以用DecodeHookFunc更优雅地实现?
-func (o *ViperX) parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) error {
+func (o *ViperX) parseStruct(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts ...string) error {
 	var (
 		err error
 	)
+
+	switch rt.Kind() {
+	default:
+		return errors.Errorf("unsupported type:%v, path:%v", rt.String(), strings.Join(parts, "."))
+	case reflect.Pointer:
+		return o.parseStruct(fs, rt.Elem(), tagName, parts...)
+	case reflect.Struct:
+	}
+
 	for i := 0; i < rt.NumField(); i++ {
 		t := rt.Field(i)
 		fieldName := parseTypeName(t, tagName)
@@ -104,10 +114,21 @@ func (o *ViperX) parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts
 		switch t.Type.Kind() {
 		case reflect.Struct: // Handle nested struct
 			if len(fieldName) == 0 {
-				err = o.parse(fs, t.Type, tagName, parts...)
+				err = o.parseStruct(fs, t.Type, tagName, parts...)
 			} else {
-				err = o.parse(fs, t.Type, tagName, append(parts, fieldName)...)
+				err = o.parseStruct(fs, t.Type, tagName, append(parts, fieldName)...)
 			}
+		case reflect.Ptr: // Handle pointer field
+			e := t.Type.Elem()
+			if e.Kind() == reflect.Struct {
+				if len(fieldName) == 0 {
+					err = o.parseStruct(fs, t.Type.Elem(), tagName, parts...)
+				} else {
+					err = o.parseStruct(fs, t.Type.Elem(), tagName, append(parts, fieldName)...)
+				}
+			}
+		//case reflect.Array, reflect.Slice:
+		//	return errors.Errorf("unsupported type:%v, path:%v", rt.String(), strings.Join(append(parts, fieldName), "."))
 		default: // Handle leaf field
 			keyPath := strings.Join(append(parts, fieldName), ".")
 			flags := parseFlagOpts(t.Tag)
@@ -117,10 +138,14 @@ func (o *ViperX) parse(fs *pflag.FlagSet, rt reflect.Type, tagName string, parts
 			}
 
 			flags.SetPFlag(fs)
+
 			if err = vx.v.BindPFlag(keyPath, fs.Lookup(flags.Name)); err != nil {
 				return err
 			}
-			vx.v.SetDefault(keyPath, flags.Default)
+
+			if len(flags.Default) > 0 {
+				vx.v.SetDefault(keyPath, flags.Default)
+			}
 
 			if flags.Must == "true" && flags.Default == "" {
 				o.mustList = append(o.mustList, &flags)

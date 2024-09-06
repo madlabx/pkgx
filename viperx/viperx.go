@@ -80,10 +80,10 @@ func (o *ViperX) BindEnvs(prefix, keyDelimiter, envDelimiter string) {
 	}
 }
 
-func (o *ViperX) Parse(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption) error {
+func (o *ViperX) parse(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption) error {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
-	return o.parse(fs, reflect.TypeOf(cfg), getMapStructureTagName(opts...))
+	return o.parseStruct(fs, reflect.TypeOf(cfg), getMapStructureTagName(opts...))
 }
 
 func doValidate(vld *validator.Validate, in any, rangeRequired string) (msg string, err error) {
@@ -107,7 +107,7 @@ func doValidate(vld *validator.Validate, in any, rangeRequired string) (msg stri
 func (o *ViperX) Validate() error {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
-
+	
 	var (
 		err           error
 		msg           string
@@ -173,7 +173,7 @@ func BindAllFlags(fs *pflag.FlagSet, cfg any, opts ...viper.DecoderConfigOption)
 		return fs, err
 	}
 
-	if err := vx.Parse(fs, cfg, opts...); err != nil {
+	if err := vx.parse(fs, cfg, opts...); err != nil {
 		return nil, err
 	}
 
