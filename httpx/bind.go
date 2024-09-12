@@ -196,10 +196,12 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 		// apply body in first
 		if bv != nil {
 			vv := reflect.ValueOf(bv)
-			if vv.Kind() == reflect.Slice || vv.Kind() == reflect.Map || vv.Kind() == reflect.String {
-				// 返回数据的长度
-				if vv.Len() == 0 {
-					return errors.Errorf("missing parameter %s", strings.Join(newPaths, "."))
+			if hxTags.must {
+				if vv.Kind() == reflect.Slice || vv.Kind() == reflect.Map || vv.Kind() == reflect.String {
+					// 返回数据的长度
+					if vv.Len() == 0 {
+						return errors.Errorf("missing parameter %s", strings.Join(newPaths, "."))
+					}
 				}
 			}
 			value = bv
