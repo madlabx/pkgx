@@ -151,3 +151,9 @@ func Eventf(format string, args ...interface{}) {
 func FatalIf(args ...interface{}) {
 	logrus.Fatal(args...)
 }
+
+func IgnoreErrf(err error, behavior string) {
+	if err != nil {
+		logrus.Errorf("Ignore err during %v, err:%v", behavior, err)
+	}
+}

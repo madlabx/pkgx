@@ -1,23 +1,26 @@
 package cmdx
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/madlabx/pkgx/errors"
+	"github.com/madlabx/pkgx/log"
 )
 
-type Result struct {
-	Stdout   io.Writer
-	Stderr   io.Writer
-	ExitCode int
+type Output struct {
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
-func ExecShellCmd(pCtx context.Context, cmdStr string, result *Result) error {
+func ExecShellCmd(pCtx context.Context, cmdStr string, result *Output) error {
 	if len(cmdStr) == 0 {
-		return errors.New("empty cmdStr")
+		return ErrEmptyCmdStr
 	}
 	ctx := context.WithoutCancel(pCtx)
 	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", cmdStr)
@@ -25,9 +28,9 @@ func ExecShellCmd(pCtx context.Context, cmdStr string, result *Result) error {
 	return doExecCmd(cmd, result)
 }
 
-func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Result) error {
+func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Output) error {
 	if len(cmdStr) == 0 {
-		return errors.New("empty cmdStr")
+		return ErrEmptyCmdStr
 	}
 
 	ctx := context.WithoutCancel(pCtx)
@@ -39,17 +42,54 @@ func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Result) error {
 	return doExecCmd(cmd, result)
 }
 
-func doExecCmd(cmd *exec.Cmd, cr *Result) error {
+func ExecWithResponse(pCtx context.Context, cmdStr string, resp any) error {
+	if len(cmdStr) == 0 {
+		return ErrEmptyCmdStr
+	}
+	var (
+		op    Output
+		begin = time.Now()
+	)
+	defer func() {
+		log.Infof("ExecWithResponse: %s, cost: %s", cmdStr, time.Since(begin))
+	}()
+	if resp == nil {
+		op = Output{
+			Stdout: log.StandardLogger().Out,
+			Stderr: log.StandardLogger().Out,
+		}
+		if err := ExecBinaryCmd(pCtx, cmdStr, &op); err != nil {
+			log.Errorf("Failed to execute [%v], err:%v", cmdStr, err)
+			return errors.Wrap(err)
+		}
+	} else {
+		var stdOut, stdErr bytes.Buffer
+		op = Output{
+			Stdout: &stdOut,
+			Stderr: &stdErr,
+		}
+		if err := ExecBinaryCmd(pCtx, cmdStr, &op); err != nil {
+			log.Errorf("Failed to execute [%v], stdout:[%v], stderr:[%v], err:%v", cmdStr, stdOut.String(), stdErr.String(), err)
+			return errors.Wrap(err)
+		} else {
+			if err = json.Unmarshal(stdOut.Bytes(), resp); err != nil {
+				log.Errorf("Failed to Unmarshal output of cmdStr:[%v], stdout:[%v], stderr:[%v], err:%v", cmdStr, stdOut.String(), stdErr.String(), err)
+				return errors.Wrap(err)
+			}
+		}
+	}
+	return nil
+
+}
+
+func doExecCmd(cmd *exec.Cmd, cr *Output) error {
 	if cr != nil {
 		cmd.Stdout = cr.Stdout
 		cmd.Stderr = cr.Stderr
+	} else {
+		cmd.Stdout = log.StandardLogger().Out
+		cmd.Stderr = log.StandardLogger().Out
 	}
 
-	err := cmd.Run()
-
-	if cr != nil {
-		cr.ExitCode = cmd.ProcessState.ExitCode()
-	}
-
-	return errors.Wrap(err)
+	return errors.Wrap(cmd.Run())
 }
