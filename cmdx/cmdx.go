@@ -19,11 +19,12 @@ type Output struct {
 }
 
 func ExecShellCmd(pCtx context.Context, cmdStr string, result *Output) error {
+
 	if len(cmdStr) == 0 {
 		return ErrEmptyCmdStr
 	}
-	ctx := context.WithoutCancel(pCtx)
-	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
+	shellBinary, shellParam := getShellCmdParam()
+	cmd := exec.CommandContext(context.WithoutCancel(pCtx), shellBinary, shellParam, cmdStr)
 
 	return doExecCmd(cmd, result)
 }
