@@ -23,7 +23,7 @@ func ExecShellCmd(pCtx context.Context, cmdStr string, result *Output) error {
 		return ErrEmptyCmdStr
 	}
 	ctx := context.WithoutCancel(pCtx)
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", cmdStr)
+	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
 
 	return doExecCmd(cmd, result)
 }
@@ -41,8 +41,18 @@ func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Output) error {
 
 	return doExecCmd(cmd, result)
 }
-
+func ShExecWithResponse(pCtx context.Context, cmdStr string, resp any) error {
+	return doExecWithResponse(true, pCtx, cmdStr, resp)
+}
 func ExecWithResponse(pCtx context.Context, cmdStr string, resp any) error {
+	return doExecWithResponse(false, pCtx, cmdStr, resp)
+}
+
+func doExecWithResponse(UnderShell bool, pCtx context.Context, cmdStr string, resp any) error {
+	workerFn := ExecBinaryCmd
+	if UnderShell {
+		workerFn = ExecShellCmd
+	}
 	if len(cmdStr) == 0 {
 		return ErrEmptyCmdStr
 	}
@@ -58,7 +68,7 @@ func ExecWithResponse(pCtx context.Context, cmdStr string, resp any) error {
 			Stdout: log.StandardLogger().Out,
 			Stderr: log.StandardLogger().Out,
 		}
-		if err := ExecBinaryCmd(pCtx, cmdStr, &op); err != nil {
+		if err := workerFn(pCtx, cmdStr, &op); err != nil {
 			log.Errorf("Failed to execute [%v], err:%v", cmdStr, err)
 			return errors.Wrap(err)
 		}
@@ -68,7 +78,7 @@ func ExecWithResponse(pCtx context.Context, cmdStr string, resp any) error {
 			Stdout: &stdOut,
 			Stderr: &stdErr,
 		}
-		if err := ExecBinaryCmd(pCtx, cmdStr, &op); err != nil {
+		if err := workerFn(pCtx, cmdStr, &op); err != nil {
 			log.Errorf("Failed to execute [%v], stdout:[%v], stderr:[%v], err:%v", cmdStr, stdOut.String(), stdErr.String(), err)
 			return errors.Wrap(err)
 		} else {
