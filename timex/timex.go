@@ -2,17 +2,6 @@ package timex
 
 import "time"
 
-func GetTimeString3() string {
-	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02 15:04:05")
-}
-
-func GetTimeStringT() string {
-	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02T15:04:05")
-}
-
-func GetTimeString2() string {
-	return time.Unix(time.Now().Unix(), 0).Format("20060102150405")
-}
 
 func UnixTimeToGbLocalTime(sec int64) string {
 	tm := time.Unix(sec, 0)
@@ -51,4 +40,15 @@ func NowInYYMMDD() string {
 
 func NowInHHMMSS() string {
 	return time.Now().Format("15:04:05")
+}
+
+func NowInISO8601() string {
+	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02T15:04:05")
+}
+func NowInISO8601Var() string {
+	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02 15:04:05")
+}
+
+func NowInYYMMDDHHMMSS() string {
+	return time.Now().Format("20060102150405")
 }
