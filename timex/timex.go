@@ -2,7 +2,6 @@ package timex
 
 import "time"
 
-
 func UnixTimeToGbLocalTime(sec int64) string {
 	tm := time.Unix(sec, 0)
 	return tm.Format("2006-01-02T15:04:05")

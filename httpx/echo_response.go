@@ -88,3 +88,10 @@ func ServeContent(w http.ResponseWriter, req *http.Request, name string, modTime
 	w.Header().Set("Etag", NewEtag(modTime, length))
 	http.ServeContent(w, req, name, modTime, content)
 }
+
+func ServeContentWithTag(w http.ResponseWriter, req *http.Request, name string, modTime time.Time, tag string, content io.ReadSeeker) {
+	rid := errCodeDic.NewRequestId()
+	w.Header().Set(echo.HeaderXRequestID, rid)
+	w.Header().Set("Etag", tag)
+	http.ServeContent(w, req, name, modTime, content)
+}
