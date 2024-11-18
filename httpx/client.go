@@ -13,18 +13,18 @@ package httpx
 //		url = fmt.Sprintf("https://%s:%d", proxyHost, proxyPort)
 //	}
 //
-//	proxyUrl, cause := urllib.Parse(url)
-//	if cause != nil {
-//		return nil, cause
+//	proxyUrl, err := urllib.Parse(url)
+//	if err != nil {
+//		return nil, err
 //	}
 //
 //	return &http.Transport{Proxy: http.ProxyURL(proxyUrl)}, nil
 //}
 //
 //func NewProxyClient(proxyHost string, proxyPort int, isHttp bool) (*HttpClient, error) {
-//	trspt, cause := NewProxyTransport(proxyHost, proxyPort, isHttp)
-//	if cause != nil {
-//		return nil, cause
+//	trspt, err := NewProxyTransport(proxyHost, proxyPort, isHttp)
+//	if err != nil {
+//		return nil, err
 //	}
 //
 //	return NewHttpClient(trspt), nil
@@ -45,25 +45,25 @@ package httpx
 //	stats.Url = url
 //
 //	lastTime := time.Now()
-//	req, cause := http.NewRequest("GET", url, nil)
-//	if cause != nil {
+//	req, err := http.NewRequest("GET", url, nil)
+//	if err != nil {
 //		stats.Error = ERR_CONNTION
-//		return stats, cause
+//		return stats, err
 //	}
 //	req.Header.Set("User-Agent", "Content Preposition Client")
 //
-//	resp, cause := pc.client.Do(req)
-//	if cause != nil {
+//	resp, err := pc.client.Do(req)
+//	if err != nil {
 //		stats.Error = ERR_REQ
-//		return stats, cause
+//		return stats, err
 //	}
 //
 //	defer resp.Body.Close()
 //
-//	n, cause := io.Copy(out, resp.Body)
-//	if cause != nil {
+//	n, err := io.Copy(out, resp.Body)
+//	if err != nil {
 //		stats.Error = ERR_READ
-//		return stats, cause
+//		return stats, err
 //	}
 //
 //	stats.DownloadSize = n
@@ -78,16 +78,16 @@ package httpx
 //	stats.Url = url
 //
 //	lastTime := time.Now()
-//	b, cause := json.Marshal(obj)
-//	if cause != nil {
+//	b, err := json.Marshal(obj)
+//	if err != nil {
 //		stats.Error = ERR_JSON
-//		return nil, cause
+//		return nil, err
 //	}
 //
-//	resp, cause := pc.client.Post(url, "application/json", bytes.NewBuffer(b))
-//	if cause != nil {
+//	resp, err := pc.client.Post(url, "application/json", bytes.NewBuffer(b))
+//	if err != nil {
 //		stats.Error = ERR_REQ
-//		return nil, cause
+//		return nil, err
 //	}
 //
 //	pc.fillRespStats(stats, resp, lastTime)
@@ -105,17 +105,17 @@ package httpx
 //	stats.Url = url
 //
 //	lastTime := time.Now()
-//	req, cause := http.NewRequest("PURGE", url, nil)
-//	if cause != nil {
+//	req, err := http.NewRequest("PURGE", url, nil)
+//	if err != nil {
 //		stats.Error = ERR_CONNTION
-//		return stats, cause
+//		return stats, err
 //	}
 //	req.Header.Set("User-Agent", "Content Preposition Client")
 //
-//	resp, cause := pc.client.Do(req)
-//	if cause != nil {
+//	resp, err := pc.client.Do(req)
+//	if err != nil {
 //		stats.Error = ERR_CONNTION
-//		return stats, cause
+//		return stats, err
 //	}
 //
 //	defer resp.Body.Close()

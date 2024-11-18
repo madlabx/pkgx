@@ -123,7 +123,9 @@ func New(message string) error {
 // Errorf also records the stack trace at the point it was called.
 func Errorf(format string, args ...interface{}) error {
 	return errors.WithStackDepthIf(fmt.Errorf(format, args...), stackDepth)
-
+}
+func ErrorfWithRelativeStackDepth(depth int, format string, args ...interface{}) error {
+	return errors.WithStackDepthIf(fmt.Errorf(format, args...), stackDepth+depth)
 }
 
 // WithStack annotates err with a stack trace at the point WithStack was called.
@@ -180,4 +182,28 @@ func WrapfWithRelativeStackDepth(err error, depth int, format string, args ...an
 // investigation.
 func Cause(err error) error {
 	return errors.Cause(err)
+}
+
+func StackTrace(err error) errors.StackTrace {
+	var st ErrorWithStackTrace
+
+	if As(err, &st) {
+		return st.StackTrace()
+	}
+
+	return nil
+}
+
+func Frames(err error) []errors.Frame {
+	var st ErrorWithStackTrace
+
+	if As(err, &st) {
+		return st.StackTrace()
+	}
+
+	return nil
+}
+
+type ErrorWithStackTrace interface {
+	StackTrace() errors.StackTrace
 }

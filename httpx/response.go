@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	emperrors "emperror.dev/errors"
 	"github.com/labstack/echo"
 	"github.com/madlabx/pkgx/errcodex"
 	"github.com/madlabx/pkgx/errors"
@@ -21,7 +22,7 @@ var _ errcodex.ErrorCodeIf = &JsonResponse{}
 
 // JsonResponse should be:
 type JsonResponse struct {
-	cause error
+	err error
 
 	Status int `json:"-"`
 
@@ -31,6 +32,20 @@ type JsonResponse struct {
 
 	RequestId string `json:"RequestId,omitempty"`
 	Result    any    `json:"Result,omitempty"`
+}
+
+func (jr *JsonResponse) Frames() []emperrors.Frame {
+	var st interface{ StackTrace() emperrors.StackTrace }
+
+	if errors.As(jr.err, &st) {
+		return st.StackTrace()
+	}
+
+	return nil
+}
+
+func (jr *JsonResponse) StackTrace() emperrors.StackTrace {
+	return errors.StackTrace(jr.err)
 }
 
 func (jr *JsonResponse) GetHttpStatus() int {
@@ -43,16 +58,6 @@ func (jr *JsonResponse) GetCode() string {
 
 func (jr *JsonResponse) GetErrno() int {
 	return jr.Errno
-}
-
-// return true while Code is same
-func (jr *JsonResponse) Is(target error) bool {
-	var ec errcodex.ErrorCodeIf
-	if errors.As(target, &ec) {
-		return ec.GetCode() == jr.Code
-	}
-
-	return false
 }
 
 func (jr *JsonResponse) CompleteMessage() *JsonResponse {
@@ -68,11 +73,7 @@ func (jr *JsonResponse) JsonString() string {
 	//TODO refactor
 	njr := jr.Copy()
 
-	if njr.Message == "" && njr.Result == nil {
-		njr.Message = njr.Error()
-	}
-
-	return utils.ToString(njr)
+	return utils.ToString(njr.CompleteMessage())
 }
 
 func (jr *JsonResponse) flatErrString() string {
@@ -89,23 +90,22 @@ func (jr *JsonResponse) flatErrString() string {
 		builder.WriteString(fmt.Sprintf(", Result:%v", utils.ToString(jr.Result)))
 	}
 
-	if jr.cause != nil {
-		builder.WriteString(fmt.Sprintf(", Err:%s", jr.cause))
+	if jr.err != nil {
+		builder.WriteString(fmt.Sprintf(", Err:%s", jr.err))
 	}
 	return builder.String()
 }
 
 // Error output err at first, then Message, then flatErrString
 func (jr *JsonResponse) Error() string {
-	if jr.cause != nil {
-		return jr.cause.Error()
-	}
-
-	if jr.Message != "" {
-		return jr.Message
+	if jr.err != nil {
+		return jr.err.Error()
 	}
 
 	if !jr.IsOK() {
+		if jr.Message != "" {
+			return jr.Message
+		}
 		return jr.flatErrString()
 	}
 
@@ -119,7 +119,7 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 		if s.Flag('+') {
 			rawJson := jr.JsonString()
 			newRawJson := rawJson[:len(rawJson)-1]
-			_, _ = fmt.Fprintf(s, "%s,\"Cause\":\"%+v\"}", newRawJson, jr.cause)
+			_, _ = fmt.Fprintf(s, "%s,\"Cause\":\"%+v\"}", newRawJson, jr.err)
 			return
 		}
 		fallthrough
@@ -130,24 +130,15 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 	}
 }
 
-// WithMessagef append Message, won't impact IsOK()
-// in jr.cjson, if Message is not "", won't return cause.Error
-func (jr *JsonResponse) WithMessagef(format string, a ...any) error {
-	if format == "" {
-		return jr
-	}
-
-	if jr.Message == "" {
-		jr.Message = fmt.Sprintf(format, a...)
-	} else {
-		jr.Message += fmt.Sprintf(","+format, a...)
-	}
-
+// WithMessagef set Message, won't impact IsOK()
+// in jr.cjson, if Message is not "", won't return err.Error
+func (jr *JsonResponse) WithMessagef(format string, a ...any) *JsonResponse {
+	jr.Message = fmt.Sprintf(format, a...)
 	return jr
 }
 
-// WithError if has cause, join with Error
-// in jr.cjson, if Message is nil, use cause.Error
+// WithError if has err, join with Error
+// in jr.cjson, if Message is nil, use err.Error
 func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 	if err == nil {
 		return jr
@@ -160,41 +151,35 @@ func (jr *JsonResponse) WithError(err error, depths ...int) *JsonResponse {
 
 	if jr.IsOK() {
 		//original jr is OK, update with new error
-		return Wrap(err)
+		*jr = *(Wrap(err))
 	} else {
-		if jr.cause == nil {
-			newJr := &JsonResponse{}
-			if errors.As(err, &newJr) {
-				jr.cause = newJr.Cause()
-			} else {
-				jr.cause = errors.WrapWithRelativeStackDepth(err, depth)
-			}
+		//overwrite the err
+		newJr := &JsonResponse{}
+		if errors.As(err, &newJr) {
+			jr.err = newJr.Unwrap()
 		} else {
-			jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, err.Error())
+			jr.err = errors.WrapWithRelativeStackDepth(err, depth)
 		}
 	}
 
 	return jr
 }
 
-// WithErrorf if has cause, join with Errorf
-// in jr.cjson, if Message is nil, use cause.Error
-func (jr *JsonResponse) WithErrorf(format string, a ...any) error {
+// WithErrorf set err
+// in jr.cjson, if Message is nil, use err.Error
+func (jr *JsonResponse) WithErrorf(format string, a ...any) *JsonResponse {
 	if format == "" {
 		return jr
 	}
 
-	depth := 1
 	if jr.IsOK() {
 		//original jr is OK, update with new error
-		return Wrap(errors.Errorf(format, a...))
+		*jr = *(Wrap(errors.ErrorfWithRelativeStackDepth(1, format, a...)))
 	} else {
-		if jr.cause == nil {
-			jr.cause = errors.Errorf(format, a...)
-		}
-		jr.cause = errors.WrapfWithRelativeStackDepth(jr.cause, depth, format, a...)
-		return jr
+		jr.err = errors.ErrorfWithRelativeStackDepth(1, format, a...)
 	}
+
+	return jr
 }
 
 // WithResult to be simple, do overwrite
@@ -203,17 +188,8 @@ func (jr *JsonResponse) WithResult(result any) *JsonResponse {
 	return jr
 }
 
-func (jr *JsonResponse) clone(obj *JsonResponse) {
-	jr.Errno = obj.Errno
-	jr.Code = obj.Code
-	jr.cause = obj.cause
-	jr.Status = obj.Status
-	jr.RequestId = obj.RequestId
-	jr.Result = obj.Result
-}
-
 func (jr *JsonResponse) Copy() *JsonResponse {
-	//TODO whether need deep copy cause... no need to do, normally error type will not change
+	//TODO whether need deep copy err... no need to do, normally error type will not change
 	obj := *jr
 	return &obj
 }
@@ -222,7 +198,7 @@ func (jr *JsonResponse) cjson(c echo.Context) error {
 	if jr.Code == "" && jr.Errno == 0 && jr.Result == nil {
 		return c.NoContent(jr.Status)
 	}
-	
+
 	err := c.JSON(jr.Status, jr.CompleteMessage())
 	if err != nil {
 		err = jr.Unwrap()
@@ -231,22 +207,33 @@ func (jr *JsonResponse) cjson(c echo.Context) error {
 	return err
 }
 
-// WithStack add cause with StackTrace
+// WithStack add err with StackTrace
 func (jr *JsonResponse) WithStack(relativeDepths ...int) *JsonResponse {
-	if jr.cause == nil {
-		jr.cause = jr.Cause()
+	if jr.IsOK() {
+		return jr
 	}
+
+	var st errors.ErrorWithStackTrace
+	if errors.As(jr.err, &st) {
+		return jr
+	}
+
+	if jr.err == nil {
+		jr.err = errors.NewStd(jr.Error())
+	}
+
 	relativeDepth := 1
 	if len(relativeDepths) > 0 {
 		relativeDepth = relativeDepths[0]
 	}
-	jr.cause = errors.WrapWithRelativeStackDepth(jr.cause, relativeDepth)
+
+	jr.err = errors.WrapWithRelativeStackDepth(jr.err, relativeDepth)
 
 	return jr
 }
 
 func (jr *JsonResponse) Unwrap() error {
-	return jr.cause
+	return jr.err
 }
 
 func (jr *JsonResponse) IsOK() bool {
@@ -254,18 +241,18 @@ func (jr *JsonResponse) IsOK() bool {
 	return jr.Code == errCodeDic.GetSuccess().GetCode()
 }
 
-// Cause return children cause. will not recursively retrieve cause.Cause
-func (jr *JsonResponse) Cause() error {
-	if jr.cause != nil {
-		//TODO consider to return jr.cause.Cause()??
-		return jr.cause
+// Cause return children err. will not recursively retrieve err.Cause
+func (jr *JsonResponse) Cause() string {
+	if jr.err != nil {
+		//TODO consider to return jr.err.Cause()??
+		return jr.err.Error()
 	}
 
 	if !jr.IsOK() {
-		return fmt.Errorf(jr.flatErrString())
+		return jr.flatErrString()
 	}
 
-	return nil
+	return ""
 }
 
 // wrap with JsonResponse, with Stack
@@ -287,31 +274,31 @@ func Wrap(err error) *JsonResponse {
 		if jr.Status == 0 {
 			jr.Status = jr.Errno
 		}
-		return jr.WithStack(1)
+		return jr
 	case errors.As(err, &ec):
 		jr = &JsonResponse{
 			Status: ec.GetHttpStatus(),
 			Code:   ec.GetCode(),
 			Errno:  ec.GetErrno(),
-			cause:  errors.WrapWithRelativeStackDepth(ec.Unwrap(), 1),
+			err:    errors.WrapWithRelativeStackDepth(ec.Unwrap(), 1),
 		}
 	case errors.As(err, &eh):
 		jr = &JsonResponse{
 			Status: eh.Code,
 			Code:   TrimHttpStatusText(eh.Code),
 			Errno:  eh.Code,
-			cause:  errors.WrapWithRelativeStackDepth(eh, 1),
+			err:    errors.WrapWithRelativeStackDepth(eh, 1),
 		}
 
 		//TODO 对于PathError是否还需要单独处理，不打印出path
-	//case errors.As(cause, &ep):
-	//	ne = ErrorResp(handleErrToHttpStatus(cause), handleErrToECode(cause), cause)
+	//case errors.As(err, &ep):
+	//	ne = ErrorResp(handleErrToHttpStatus(err), handleErrToECode(err), err)
 	default:
 		jr = &JsonResponse{
 			Status: http.StatusInternalServerError,
 			Code:   TrimHttpStatusText(http.StatusInternalServerError),
 			Errno:  http.StatusInternalServerError,
-			cause:  errors.WrapWithRelativeStackDepth(err, 1),
+			err:    errors.WrapWithRelativeStackDepth(err, 1),
 		}
 	}
 

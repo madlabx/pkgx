@@ -116,7 +116,7 @@ func HttpPost(url string, body interface{}) (*http.Response, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, cause)
+		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 		return nil, err
 	}
 
@@ -131,7 +131,7 @@ func httpPostInternal(cli *Client, url string, body interface{}) (*http.Response
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, cause)
+		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
 		return nil, err
 	}
 
@@ -147,7 +147,7 @@ func requestBytesForBody(hc *Client, method, requrl string, bodyBytes []byte, wa
 	req, err := http.NewRequest(method, requrl, bytes.NewReader(bodyBytes))
 
 	if err != nil {
-		log.Errorf("failed to build request, cause:%#v", err.Error())
+		log.Errorf("failed to build request, err:%#v", err.Error())
 		return nil, nil, err
 	}
 	if method == "POST" {
@@ -168,7 +168,7 @@ func requestBytesForBody(hc *Client, method, requrl string, bodyBytes []byte, wa
 	if wantBody {
 		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
-			log.Errorf("read body cause, %v", err.Error())
+			log.Errorf("read body err, %v", err.Error())
 			return nil, nil, err
 		}
 		return rsp, body, err
@@ -184,7 +184,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 	req, err := http.NewRequest(method, reqUrl, bytes.NewReader(bodyBytes))
 
 	if err != nil {
-		log.Errorf("failed to build request, cause:%#v", err.Error())
+		log.Errorf("failed to build request, err:%#v", err.Error())
 		return nil, nil, err
 	}
 	if method == "POST" {
@@ -193,7 +193,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 	req.Header.Set("Connection", "close")
 	rsp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("failed to send request, cause:%#v", err.Error())
+		log.Errorf("failed to send request, err:%#v", err.Error())
 		return nil, nil, Wrap(err)
 	}
 	defer func() {
@@ -205,7 +205,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 	if wantBody {
 		body, err := io.ReadAll(rsp.Body)
 		if err != nil {
-			log.Errorf("read body cause, %v", err.Error())
+			log.Errorf("read body err, %v", err.Error())
 			//return nil, nil, errStrResp(rsp.StatusCode, errno.ECODE_FAILED_HTTP_REQUEST, "Failed to parse response body")
 			return nil, nil, errors.New("Failed to parse response body")
 		}
@@ -218,7 +218,7 @@ func requestBytesForBodyNormal(method, reqUrl string, bodyBytes []byte, wantBody
 func ResponseToMap(body []byte) (map[string]interface{}, error) {
 	var set map[string]interface{}
 	if err := json.Unmarshal(body, &set); err != nil {
-		log.Errorf("Unmarshal cause, %v", err.Error())
+		log.Errorf("Unmarshal err, %v", err.Error())
 		return nil, err
 	}
 	return set, nil
