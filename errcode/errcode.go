@@ -236,12 +236,14 @@ var (
 )
 
 var (
-	ErrWrongSign      = New(http.StatusBadRequest, "WrongSign")
-	ErrExpiredRequest = New(http.StatusBadRequest, "ExpiredRequest")
-	ErrObjectExist    = New(http.StatusBadRequest, "ObjectExist")
-	ErrObjectNotExist = New(http.StatusBadRequest, "ObjectNotExist")
-	ErrUserExist      = New(http.StatusBadRequest, "UserExist")
-	ErrUserNotExist   = New(http.StatusBadRequest, "UserNotExist")
+	ErrWrongSign       = New(http.StatusBadRequest, "WrongSign")
+	ErrExpiredRequest  = New(http.StatusBadRequest, "ExpiredRequest")
+	ErrObjectExist     = New(http.StatusBadRequest, "ObjectExist")
+	ErrObjectNotExist  = New(http.StatusBadRequest, "ObjectNotExist")
+	ErrUserExist       = New(http.StatusBadRequest, "UserExist")
+	ErrUserNotExist    = New(http.StatusBadRequest, "UserNotExist")
+	ErrSessionNotExist = New(http.StatusBadRequest, "SessionNotExist")
+	ErrSessionExist    = New(http.StatusBadRequest, "SessionExist")
 
 	ErrRTokenDisabled  = New(http.StatusUnauthorized, "RTokenDisabled")
 	ErrInvalidJwt      = New(http.StatusUnauthorized, "InvalidJwt")
@@ -254,6 +256,7 @@ var (
 	ErrInvalidToken    = New(http.StatusUnauthorized, "InvalidToken")
 	ErrInvalidIssuer   = New(http.StatusUnauthorized, "InvalidIssuer")
 
+	ErrNotReady        = New(http.StatusInternalServerError, "NotReady")
 	ErrInvalidDataType = New(http.StatusInternalServerError, "InvalidDataType")
 )
 
