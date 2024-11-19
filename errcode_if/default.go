@@ -1,11 +1,11 @@
-package errcodex
+package errcode_if
 
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
+	"github.com/madlabx/pkgx/utils"
 )
 
 var (
@@ -22,7 +22,7 @@ type DefaultErrCode struct {
 
 func newDefaultErrCode(code int) *DefaultErrCode {
 	return &DefaultErrCode{
-		trimHttpStatusText(code),
+		utils.TrimHttpStatusText(code),
 		code,
 		code,
 	}
@@ -65,7 +65,7 @@ func (de *DefaultErrCodeDic) NewRequestId() string {
 }
 
 func (de *DefaultErrCodeDic) ToCode(errno int) string {
-	return trimHttpStatusText(errno)
+	return utils.TrimHttpStatusText(errno)
 }
 
 func (de *DefaultErrCodeDic) ToHttpStatus(errno int) int {
@@ -75,27 +75,4 @@ func (de *DefaultErrCodeDic) ToHttpStatus(errno int) int {
 	} else {
 		return errno
 	}
-}
-
-func trimHttpStatusText(status int) string {
-	trimmedSpace := strings.Replace(http.StatusText(status), " ", "", -1)
-	trimmedSpace = strings.Replace(trimmedSpace, "-", "", -1)
-	return trimmedSpace
-}
-
-type ErrorCodeIf interface {
-	GetHttpStatus() int
-	GetCode() string
-	GetErrno() int
-	Unwrap() error
-}
-
-type ErrorCodeDictionaryIf interface {
-	GetSuccess() ErrorCodeIf
-	GetBadRequest() ErrorCodeIf
-	GetInternalError() ErrorCodeIf
-
-	ToCode(int) string
-	ToHttpStatus(int) int
-	NewRequestId() string
 }

@@ -146,7 +146,7 @@ func WrapWithRelativeStackDepth(err error, depth int) error {
 }
 
 type WithMsgfIf interface {
-	WithErrorf(format string, args ...interface{}) error
+	WithMessagef(format string, args ...any) error
 }
 
 // Wrapf returns an error annotating err with a stack trace
@@ -157,9 +157,9 @@ func Wrapf(err error, format string, args ...interface{}) error {
 		return nil
 	}
 
-	werr, ok := err.(WithMsgfIf)
-	if ok {
-		return werr.WithErrorf(format, args...)
+	var wErr WithMsgfIf
+	if As(err, &wErr) {
+		return wErr.WithMessagef(format, args...)
 	}
 
 	return errors.WithStackDepthIf(pkgerrors.WithMessagef(err, format, args...), stackDepth)

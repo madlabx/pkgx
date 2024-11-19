@@ -7,18 +7,18 @@ import (
 
 	emperrors "emperror.dev/errors"
 	"github.com/labstack/echo"
-	"github.com/madlabx/pkgx/errcodex"
+	"github.com/madlabx/pkgx/errcode_if"
 	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/utils"
 )
 
-var errCodeDic errcodex.ErrorCodeDictionaryIf
+var errCodeDic errcode_if.ErrorCodeDictionaryIf
 
 func init() {
-	errCodeDic = &errcodex.DefaultErrCodeDic{}
+	errCodeDic = &errcode_if.DefaultErrCodeDic{}
 }
 
-var _ errcodex.ErrorCodeIf = &JsonResponse{}
+var _ errcode_if.ErrorCodeIf = &JsonResponse{}
 
 // JsonResponse should be:
 type JsonResponse struct {
@@ -132,9 +132,13 @@ func (jr *JsonResponse) Format(s fmt.State, verb rune) {
 
 // WithMessagef set Message, won't impact IsOK()
 // in jr.cjson, if Message is not "", won't return err.Error
-func (jr *JsonResponse) WithMessagef(format string, a ...any) *JsonResponse {
+func (jr *JsonResponse) WithMsgf(format string, a ...any) *JsonResponse {
 	jr.Message = fmt.Sprintf(format, a...)
 	return jr
+}
+
+func (jr *JsonResponse) WithMessagef(format string, a ...any) error {
+	return jr.WithMsgf(format, a...)
 }
 
 // WithError if has err, join with Error
@@ -264,7 +268,7 @@ func Wrap(err error) *JsonResponse {
 		ej JsonResponseWrapper
 		jr *JsonResponse
 		eh *echo.HTTPError
-		ec errcodex.ErrorCodeIf
+		ec errcode_if.ErrorCodeIf
 	)
 	switch {
 	case errors.As(err, &ej):
@@ -305,7 +309,7 @@ func Wrap(err error) *JsonResponse {
 	return jr
 }
 
-func RegisterErrCodeDictionary(dic errcodex.ErrorCodeDictionaryIf) {
+func RegisterErrCodeDictionary(dic errcode_if.ErrorCodeDictionaryIf) {
 	errCodeDic = dic
 }
 
