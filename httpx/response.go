@@ -236,6 +236,16 @@ func (jr *JsonResponse) WithStack(relativeDepths ...int) *JsonResponse {
 	return jr
 }
 
+// implement interface Is()
+func (jr *JsonResponse) Is(target error) bool {
+	var ec errcode_if.ErrorCodeIf
+	if errors.As(target, &ec) {
+		return ec.GetCode() == jr.Code
+	}
+
+	return false
+}
+
 func (jr *JsonResponse) Unwrap() error {
 	return jr.err
 }
