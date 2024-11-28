@@ -13,6 +13,14 @@ import (
 	"github.com/madlabx/pkgx/log"
 )
 
+type Client struct {
+	cli *http.Client
+}
+
+func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	return c.cli.Do(req)
+}
+
 func GetRealIp(req *http.Request) string {
 	hip := req.Header.Get("X-Forwarded-For")
 	if hip != "" {
@@ -38,32 +46,44 @@ func ResetDefaultClient(hc *Client) {
 	defaultClient = hc
 }
 
-func HttpGetBody(url string) (*http.Response, []byte, error) {
-	return requestBytesForBody(defaultClient, "GET", url, nil, true)
+func (hc *Client) WithTimeout(timeout int) *Client {
+	hc.cli.Timeout = time.Second * time.Duration(timeout)
+	return hc
 }
 
-func HttpGet(url string) (*http.Response, error) {
-	return requestBytes(defaultClient, "GET", url, nil)
+func NewClientWithTimeout(timeout int) *Client {
+	return defaultClient.clone().WithTimeout(timeout)
 }
 
-func HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) {
+func (hc *Client) HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
 		return nil, nil, err
 	}
 
-	return requestBytesForBody(defaultClient, "POST", url, b, true)
+	return requestBytesForBody(hc, "POST", url, b, true)
 }
 
 func PostX(url string, reqBody interface{}, result interface{}) (*JsonResponse, error) {
+	return defaultClient.PostX(url, reqBody, result)
+}
+
+func (hc *Client) PostX(url string, reqBody interface{}, result interface{}) (*JsonResponse, error) {
 	b, err := json.Marshal(reqBody)
 	if err != nil {
 		log.Errorf("Parse json failed, url: %s, obj: %#v", url, reqBody)
 		return nil, errors.Wrap(err)
 	}
 
-	resp, body, err := requestBytesForBody(defaultClient, "POST", url, b, true)
+	return hc.PostBytesX(url, b, result)
+}
+
+func PostBytesX(url string, b []byte, result interface{}) (*JsonResponse, error) {
+	return defaultClient.PostBytesX(url, b, result)
+}
+func (hc *Client) PostBytesX(url string, b []byte, result interface{}) (*JsonResponse, error) {
+	resp, body, err := requestBytesForBody(hc, "POST", url, b, true)
 	if err != nil {
 		return nil, errors.Wrap(err)
 	}
@@ -79,11 +99,8 @@ func PostX(url string, reqBody interface{}, result interface{}) (*JsonResponse, 
 	if !jr.IsOK() {
 		jr.Result = nil
 	}
-	return jr, nil
-}
 
-type Client struct {
-	cli *http.Client
+	return jr, nil
 }
 
 func (hc *Client) clone() *Client {
@@ -91,40 +108,30 @@ func (hc *Client) clone() *Client {
 	return &Client{cli: &newRawClient}
 }
 
-func (hc *Client) HttpPost(url string, body interface{}) (*http.Response, error) {
-	return httpPostInternal(hc, url, body)
+func HttpGetBody(url string) (*http.Response, []byte, error) {
+	return defaultClient.HttpGetBody(url)
 }
 
 func (hc *Client) HttpGetBody(url string) (*http.Response, []byte, error) {
 	return requestBytesForBody(hc, "GET", url, nil, true)
 }
 
+func HttpGet(url string) (*http.Response, error) {
+	return defaultClient.HttpGet(url)
+}
+
 func (hc *Client) HttpGet(url string) (*http.Response, error) {
 	return requestBytes(hc, "GET", url, nil)
 }
-
-func (hc *Client) WithTimeout(timeout int) *Client {
-	hc.cli.Timeout = time.Second * time.Duration(timeout)
-	return hc
-}
-
-func WithTimeout(timeout int) *Client {
-	return defaultClient.clone().WithTimeout(timeout)
+func HttpPostBody(url string, body interface{}) (*http.Response, []byte, error) {
+	return defaultClient.HttpPostBody(url, body)
 }
 
 func HttpPost(url string, body interface{}) (*http.Response, error) {
-	b, err := json.Marshal(body)
-	if err != nil {
-		log.Errorf("Parse json failed, url: %s, obj: %#v", url, body)
-		//return nil, ErrorResp(http.StatusBadRequest, errno.ECODE_BAD_REQUEST_PARAM, err)
-		return nil, err
-	}
-
-	return requestBytes(
-		defaultClient,
-		"POST",
-		url,
-		b)
+	return defaultClient.HttpPost(url, body)
+}
+func (hc *Client) HttpPost(url string, body interface{}) (*http.Response, error) {
+	return httpPostInternal(hc, url, body)
 }
 
 func httpPostInternal(cli *Client, url string, body interface{}) (*http.Response, error) {

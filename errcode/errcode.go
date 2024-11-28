@@ -256,8 +256,9 @@ var (
 	ErrInvalidToken    = New(http.StatusUnauthorized, "InvalidToken")
 	ErrInvalidIssuer   = New(http.StatusUnauthorized, "InvalidIssuer")
 
-	ErrNotReady        = New(http.StatusInternalServerError, "NotReady")
-	ErrInvalidDataType = New(http.StatusInternalServerError, "InvalidDataType")
+	ErrDeviceCommunicateErr = New(http.StatusInternalServerError, "DeviceCommunicateErr")
+	ErrNotReady             = New(http.StatusInternalServerError, "NotReady")
+	ErrInvalidDataType      = New(http.StatusInternalServerError, "InvalidDataType")
 )
 
 func ErrHttpStatus(status int) *ErrorCode {

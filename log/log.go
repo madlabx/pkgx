@@ -152,8 +152,8 @@ func FatalIf(args ...interface{}) {
 	logrus.Fatal(args...)
 }
 
-func IgnoreErrf(err error, format string, args ...interface{}) {
+func IgnoreErrf(err error, ctxFormat string, ctxArgs ...interface{}) {
 	if err != nil {
-		logrus.Errorf("Ignore err during %v, err:%v", fmt.Sprintf(format, args...), err)
+		logrus.Errorf("Ignore err, context:%v, err:%v", fmt.Sprintf(ctxFormat, ctxArgs...), err)
 	}
 }

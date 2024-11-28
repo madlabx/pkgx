@@ -238,6 +238,9 @@ func (jr *JsonResponse) WithStack(relativeDepths ...int) *JsonResponse {
 
 // implement interface Is()
 func (jr *JsonResponse) Is(target error) bool {
+	if target == nil {
+		return jr == target
+	}
 	var ec errcode_if.ErrorCodeIf
 	if errors.As(target, &ec) {
 		return ec.GetCode() == jr.Code
@@ -247,6 +250,9 @@ func (jr *JsonResponse) Is(target error) bool {
 }
 
 func (jr *JsonResponse) Unwrap() error {
+	if jr == nil {
+		return nil
+	}
 	return jr.err
 }
 
@@ -274,6 +280,7 @@ func Wrap(err error) *JsonResponse {
 	if err == nil {
 		return nil
 	}
+
 	var (
 		ej JsonResponseWrapper
 		jr *JsonResponse
