@@ -287,9 +287,9 @@ func LoggerWithConfig(config LoggerConfig) echo.MiddlewareFunc {
 				default:
 					switch {
 					case strings.HasPrefix(tag, "header_in:"):
-						return buf.Write([]byte(c.Request().Header.Get(tag[11:])))
+						return buf.Write([]byte(c.Request().Header.Get(tag[10:])))
 					case strings.HasPrefix(tag, "header_out:"):
-						return buf.Write([]byte(c.Response().Header().Get(tag[12:])))
+						return buf.Write([]byte(c.Response().Header().Get(tag[11:])))
 					case strings.HasPrefix(tag, "query:"):
 						return buf.Write([]byte(c.QueryParam(tag[6:])))
 					case strings.HasPrefix(tag, "form:"):

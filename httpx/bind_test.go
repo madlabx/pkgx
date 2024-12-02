@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -166,7 +167,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as("asec", parsed.(*inputStruct).SortOrder)
 			},
 
-			expectedError: errors.New("missing parameter Bandwidth"),
+			expectedError: nil,
 		},
 
 		{
@@ -204,7 +205,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(2, parsed.(*inputStruct).PageNum)
 			},
 
-			expectedError: errors.New("missing parameter Bandwidth"),
+			expectedError: nil,
 		},
 		{
 			testName:     "BodyEmptyArray",
@@ -309,7 +310,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(1.0, parsed.(*inputStruct).Quality.Level)
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		},
 		{
 			testName:     "TestDeepPtrMember",
@@ -330,7 +331,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(1.0, *(parsed.(*inputStruct).Quality.Level))
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		},
 		{
 			testName:     "TestUintArray",
@@ -351,7 +352,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(1.0, parsed.(*inputStruct).Quality.Level)
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		}, {
 			testName:     "TestStringArray",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Dirs":["test/wefwe", "123dir"]}`)),
@@ -370,7 +371,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(parsed.(*inputStruct).Dirs, []string{"test/wefwe", "123dir"})
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		},
 		{
 			testName:     "TestLongInt",
@@ -386,7 +387,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(1712652096, parsed.(*inputStruct).Level)
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		},
 		{
 			testName: "TestStructArray",
@@ -414,10 +415,10 @@ func TestBindAndValidate(t *testing.T) {
 				return as([]NewStruct{{Name: "./jonathantest", CreateTime: 1712652096}, {Name: "123dir"}}, parsed.(*inputStruct).Dirs)
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		},
 		{
-			testName:     "TestStringArray",
+			testName:     "TestStringArray1",
 			buildContext: mockRequest(http.MethodPost, "/we?Level=2.1", nil),
 			structFunc: func(parsed any) any {
 				type inputStruct struct {
@@ -434,7 +435,7 @@ func TestBindAndValidate(t *testing.T) {
 				return as(2.1, parsed.(*inputStruct).Quality.Level)
 			},
 
-			expectedError: errors.New("missing parameter Quality.Level"),
+			expectedError: nil,
 		},
 		{
 			testName:     "TestArrayEmpty",
@@ -454,6 +455,26 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: errors.New("missing parameter Paths"),
 		},
+		{
+			testName:     "TestAny",
+			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{ "Quality":{"Level":1.0}}`)),
+			structFunc: func(parsed any) any {
+				type QualityType struct {
+					Level float64
+				}
+				type inputStruct struct {
+					Quality any
+				}
+
+				if parsed == nil {
+					return &inputStruct{}
+				}
+				as(json.Number("1.0"), parsed.(*inputStruct).Quality.(map[string]interface{})["Level"])
+				return nil
+			},
+
+			expectedError: nil,
+		},
 		// Add more test cases as needed.
 	}
 
@@ -472,6 +493,7 @@ func TestBindAndValidate(t *testing.T) {
 				}
 				assert.Equal(t, tc.expectedError.Error(), err.Error())
 			} else {
+				assert.Equal(t, tc.expectedError, err)
 				tc.structFunc(input)
 			}
 			// Assert - check the output is as expected

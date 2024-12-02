@@ -122,53 +122,58 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 			newTarget = target[field.Name]
 		}
 
-		structTarget, _ := newTarget.(map[string]any)
+		{
+			structTarget, _ := newTarget.(map[string]any)
 
-		switch field.Type.Kind() {
-		case reflect.Struct:
-			err := hp.bindAndValidate(fieldValue.Addr().Interface(), structTarget, newPaths...)
-			if err != nil {
-				return err
-			}
-			continue
-		case reflect.Ptr:
-			if field.Type.Elem().Kind() == reflect.Struct && field.Type.Elem() != reflect.TypeOf(&time.Time{}) {
-				if fieldValue.CanSet() {
-					fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
-
-					err := hp.bindAndValidate(fieldValue.Addr().Interface(), structTarget, newPaths...)
-					if err != nil {
-						return err
-					}
+			switch field.Type.Kind() {
+			case reflect.Struct:
+				err := hp.bindAndValidate(fieldValue.Addr().Interface(), structTarget, newPaths...)
+				if err != nil {
+					return err
 				}
 				continue
-			}
-		case reflect.Slice:
-			if field.Type.Elem().Kind() == reflect.Struct && field.Type.Elem() != reflect.TypeOf(&time.Time{}) {
-				if newTarget != nil {
-					sliceTarget, ok := newTarget.([]any)
-					if !ok {
-						return errors.Errorf("Should be slice %T, path:%v", newTarget, newPaths)
-					}
+			case reflect.Ptr:
+				if field.Type.Elem().Kind() == reflect.Struct && field.Type.Elem() != reflect.TypeOf(&time.Time{}) {
+					if fieldValue.CanSet() {
+						fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 
-					numElems := len(sliceTarget)
-					if numElems > 0 {
-						slice := reflect.MakeSlice(field.Type, numElems, numElems)
-						for j := 0; j < numElems; j++ {
-							structTarget, _ = sliceTarget[j].(map[string]any)
-							if err := hp.bindAndValidate(slice.Index(j).Addr().Interface(), structTarget, newPaths...); err != nil {
-								return err
-							}
+						err := hp.bindAndValidate(fieldValue.Addr().Interface(), structTarget, newPaths...)
+						if err != nil {
+							return err
 						}
-						fieldValue.Set(slice)
-						continue
 					}
+					continue
 				}
-				continue
+			case reflect.Slice:
+				if field.Type.Elem().Kind() == reflect.Struct && field.Type.Elem() != reflect.TypeOf(&time.Time{}) {
+					if newTarget != nil {
+						sliceTarget, ok := newTarget.([]any)
+						if !ok {
+							return errors.Errorf("Should be slice %T, path:%v", newTarget, newPaths)
+						}
 
+						numElems := len(sliceTarget)
+						if numElems > 0 {
+							slice := reflect.MakeSlice(field.Type, numElems, numElems)
+							for j := 0; j < numElems; j++ {
+								structTarget, _ = sliceTarget[j].(map[string]any)
+								if err := hp.bindAndValidate(slice.Index(j).Addr().Interface(), structTarget, newPaths...); err != nil {
+									return err
+								}
+							}
+							fieldValue.Set(slice)
+							continue
+						}
+					}
+					continue
+
+				}
+			case reflect.Interface:
+				fieldValue.Set(reflect.ValueOf(structTarget))
+				continue
+			default:
+				//do nothing
 			}
-		default:
-			//do nothing
 		}
 
 		hxTags, err := parseHxTag(field.Tag, newPaths...)
