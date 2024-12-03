@@ -72,7 +72,7 @@ type OnlyQuery struct {
 
 func main() {
 	log.SetLoggerOutput(log.StandardLogger(), context.Background(), log.FileConfig{Filename: "stdout"})
-	agw, err := httpx.NewApiGateway(context.Background(), &httpx.LogConfig{
+	agw, err := httpx.NewApiGateway(context.Background(), "127.0.0.1", "8080", "test", &httpx.LogConfig{
 		//Output: "access.log",
 	}, nil)
 
@@ -112,7 +112,7 @@ func main() {
 		_ = agw.Stop()
 	}()
 
-	if err := agw.Run("127.0.0.1", "8080"); err != nil {
+	if err := agw.Run(); err != nil {
 		log.Error(err)
 	}
 }

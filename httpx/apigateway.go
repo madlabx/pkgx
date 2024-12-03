@@ -60,6 +60,9 @@ type LogConfig struct {
 type ApiGateway struct {
 	ctx context.Context
 	*echo.Echo
+	addr              string
+	port              string
+	name              string
 	Logger            *log.Logger
 	LogConf           *LogConfig
 	EntryFormat       logrus.Formatter
@@ -67,8 +70,11 @@ type ApiGateway struct {
 	bodyLoggerSkipper middleware.Skipper
 }
 
-func NewApiGateway(pCtx context.Context, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
+func NewApiGateway(pCtx context.Context, addr, port, name string, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
 	agw := &ApiGateway{
+		addr:        addr,
+		port:        port,
+		name:        name,
 		ctx:         context.WithoutCancel(pCtx),
 		Echo:        echo.New(),
 		LogConf:     lc,
@@ -91,9 +97,12 @@ func (agw *ApiGateway) SetBodyLoggerSkipper(s middleware.Skipper) {
 	agw.bodyLoggerSkipper = s
 }
 
-func (agw *ApiGateway) Run(ip, port string) error {
+func (agw *ApiGateway) Name() string {
+	return agw.name
+}
+func (agw *ApiGateway) Run() error {
 	agw.configEcho()
-	return agw.startEcho(fmt.Sprintf("%s:%s", ip, port))
+	return agw.startEcho(fmt.Sprintf("%s:%s", agw.addr, agw.port))
 }
 
 func (agw *ApiGateway) Stop() error {
