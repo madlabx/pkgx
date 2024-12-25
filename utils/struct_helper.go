@@ -383,8 +383,10 @@ func structToMapStrStrInternal(input interface{}, m map[string]string) {
 			structToMapStrStrInternal(fieldI.Interface(), m)
 		case reflect.String:
 			m[objT.Field(i).Name] = fieldI.String()
-		case reflect.Int, reflect.Int64:
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			m[objT.Field(i).Name] = fmt.Sprintf("%v", fieldI.Int())
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			m[objT.Field(i).Name] = fmt.Sprintf("%v", fieldI.Uint())
 		default:
 			if fieldI.IsNil() {
 				continue
