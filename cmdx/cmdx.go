@@ -18,6 +18,12 @@ type Output struct {
 	Stderr io.Writer
 }
 
+type Context struct {
+	Ctx context.Context
+	Out *Output
+	Env []string
+}
+
 func ExecShellCmd(pCtx context.Context, cmdStr string, result *Output) error {
 
 	if len(cmdStr) == 0 {
@@ -29,6 +35,38 @@ func ExecShellCmd(pCtx context.Context, cmdStr string, result *Output) error {
 	return doExecCmd(cmd, result)
 }
 
+func ExecShellCmdx(ctx Context, cmdStr string) error {
+
+	if len(cmdStr) == 0 {
+		return ErrEmptyCmdStr
+	}
+	shellBinary, shellParam := getShellCmdParam()
+	cmd := exec.CommandContext(context.WithoutCancel(ctx.Ctx), shellBinary, shellParam, cmdStr)
+
+	if len(ctx.Env) > 0 {
+		cmd.Env = ctx.Env
+	}
+
+	return doExecCmd(cmd, ctx.Out)
+}
+
+// TODO refactor with OPTION
+func ExecBinaryCmdx(ctx Context, cmdStr string) error {
+	if len(cmdStr) == 0 {
+		return ErrEmptyCmdStr
+	}
+
+	parts := strings.Fields(cmdStr)
+	head := parts[0]
+	parts = parts[1:]
+	cmd := exec.CommandContext(ctx.Ctx, head, parts...)
+
+	if len(ctx.Env) > 0 {
+		cmd.Env = ctx.Env
+	}
+
+	return doExecCmd(cmd, ctx.Out)
+}
 func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Output) error {
 	if len(cmdStr) == 0 {
 		return ErrEmptyCmdStr
