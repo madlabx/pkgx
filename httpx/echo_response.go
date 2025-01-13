@@ -15,7 +15,7 @@ func NewEtag(modTime time.Time, length int64) string {
 	// 将长度转换为16进制
 	lengthHex := strconv.FormatInt(length, 16)
 	// 将两部分用'-'连接
-	return timestampHex + "-" + lengthHex
+	return "\"" + timestampHex + "-" + lengthHex + "\""
 }
 
 // CheckIfNoneMatch if Etag same, true
@@ -86,12 +86,13 @@ func ServeContent(w http.ResponseWriter, req *http.Request, name string, modTime
 	rid := errCodeDic.NewRequestId()
 	w.Header().Set(echo.HeaderXRequestID, rid)
 	w.Header().Set("Etag", NewEtag(modTime, length))
+
 	http.ServeContent(w, req, name, modTime, content)
 }
 
-func ServeContentWithTag(w http.ResponseWriter, req *http.Request, name string, modTime time.Time, tag string, content io.ReadSeeker) {
+func ServeContentWithTag(w http.ResponseWriter, req *http.Request, name string, modTime time.Time, localEtag string, content io.ReadSeeker) {
 	rid := errCodeDic.NewRequestId()
 	w.Header().Set(echo.HeaderXRequestID, rid)
-	w.Header().Set("Etag", tag)
+	w.Header().Set("Etag", localEtag)
 	http.ServeContent(w, req, name, modTime, content)
 }
