@@ -7,6 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const keyModule = "mod"
+
 func SetOutput(out io.Writer) {
 	logrus.SetOutput(out)
 }
@@ -34,6 +36,10 @@ func SetFormatter(formatter logrus.Formatter) {
 
 func WithError(err error) *logrus.Entry {
 	return logrus.WithField(logrus.ErrorKey, err)
+}
+
+func WithModule(value interface{}) *logrus.Entry {
+	return logrus.WithField(keyModule, value)
 }
 
 func WithField(key string, value interface{}) *logrus.Entry {

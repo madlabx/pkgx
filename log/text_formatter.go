@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -73,6 +74,11 @@ type TextFormatter struct {
 	// show file:line
 	DisableFileLine bool
 
+	// if with File, the depth of the file path
+	// 2 by default
+	// for aaa/bbb/ccc/ddd/file.go, 2 means ddd/file.go, 1 means file.go.
+	FilePathDepth int
+
 	// need quote
 	EnableQuoting bool
 
@@ -88,30 +94,39 @@ func (f *TextFormatter) init(entry *logrus.Entry) {
 		f.TimestampFormat = defaultTimestampFormat
 	}
 }
-
-func getRunTimeInfo(frame int) (file, fName string, line int, ok bool) {
-	frame += 1 //skip this function call
-	_, file, line, ok = runtime.Caller(frame)
-	if ok {
-		if idx := strings.LastIndex(file, "/"); idx >= 0 {
-			file = file[idx+1:]
-		}
-		/*
-			fName = runtime.FuncForPC(pc).Name()
-			if idx := strings.LastIndex(fName, "/"); idx >= 0 {
-				fName = fName[idx+1:]
-			}
-		*/
-
+func shortenFilePath(filePath string, depth int) string {
+	parts := strings.Split(filePath, "/")
+	if len(parts) <= depth {
+		return filePath
 	}
-	return
+	return strings.Join(parts[len(parts)-depth:], "/")
 }
 
-func getRunTimeInfoString(frame int) (string, bool) {
+func (f *TextFormatter) getRunTimeInfo(frame int) (file, fName string, line int, ok bool) {
+	frame += 1 // skip this function call
+	_, file, line, ok = runtime.Caller(frame)
+
+	if !ok {
+		return "", "", 0, false
+	}
+
+	depth := f.FilePathDepth
+	if depth <= 0 {
+		depth = 2
+	}
+
+	file = shortenFilePath(file, depth)
+	return file, "", line, true
+}
+
+func (f *TextFormatter) getRunTimeInfoString(frame int) (string, bool) {
 	frame += 1 //skip this function call
-	if file, _, line, ok := getRunTimeInfo(frame); ok {
-		//return fmt.Sprintf("%s:%d(%s)", file, line, fName), true
-		return fmt.Sprintf("%s:%d", file, line), true
+	if file, _, line, ok := f.getRunTimeInfo(frame); ok {
+		var builder strings.Builder
+		builder.WriteString(file)
+		builder.WriteString(":")
+		builder.WriteString(strconv.Itoa(line))
+		return builder.String(), true
 	}
 	return "", false
 }
@@ -176,7 +191,7 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	f.appendMsg(b, "level", levelStr)
 	if !f.DisableFileLine {
-		fl, _ := getRunTimeInfoString(9)
+		fl, _ := f.getRunTimeInfoString(9)
 		f.appendMsg(b, "filen", fl)
 	}
 	if entry.Message != "" {
