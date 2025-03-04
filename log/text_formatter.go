@@ -74,7 +74,10 @@ type TextFormatter struct {
 	// show file:line
 	DisableFileLine bool
 
-	// if with File, the depth of the file path
+	// show packge.(class).FuncName
+	EnableFuncName bool
+
+	// if with File, the path depth of the file name shown
 	// 2 by default
 	// for aaa/bbb/ccc/ddd/file.go, 2 means ddd/file.go, 1 means file.go.
 	FilePathDepth int
@@ -102,9 +105,9 @@ func shortenFilePath(filePath string, depth int) string {
 	return strings.Join(parts[len(parts)-depth:], "/")
 }
 
-func (f *TextFormatter) getRunTimeInfo(frame int) (file, fName string, line int, ok bool) {
+func (f *TextFormatter) getRunTimeInfo(frame int) (string, string, int, bool) {
 	frame += 1 // skip this function call
-	_, file, line, ok = runtime.Caller(frame)
+	pc, file, line, ok := runtime.Caller(frame)
 
 	if !ok {
 		return "", "", 0, false
@@ -116,14 +119,28 @@ func (f *TextFormatter) getRunTimeInfo(frame int) (file, fName string, line int,
 	}
 
 	file = shortenFilePath(file, depth)
-	return file, "", line, true
+
+	fName := ""
+	if f.EnableFuncName {
+		fName = runtime.FuncForPC(pc).Name()
+		if idx := strings.LastIndex(fName, "/"); idx >= 0 {
+			fName = fName[idx+1:]
+		}
+	}
+
+	return file, fName, line, true
 }
 
 func (f *TextFormatter) getRunTimeInfoString(frame int) (string, bool) {
 	frame += 1 //skip this function call
-	if file, _, line, ok := f.getRunTimeInfo(frame); ok {
+	if file, fName, line, ok := f.getRunTimeInfo(frame); ok {
 		var builder strings.Builder
 		builder.WriteString(file)
+		if fName != "" {
+			builder.WriteString("(")
+			builder.WriteString(fName)
+			builder.WriteString(")")
+		}
 		builder.WriteString(":")
 		builder.WriteString(strconv.Itoa(line))
 		return builder.String(), true
