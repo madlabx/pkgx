@@ -172,9 +172,9 @@ func LevelToString(level logrus.Level) string {
 		return "FATA"
 	case logrus.PanicLevel:
 		return "PANI"
+	default:
+		return "UNKN"
 	}
-
-	return "UNKN"
 }
 
 // Format renders a single log entry
