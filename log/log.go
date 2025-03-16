@@ -9,6 +9,11 @@ import (
 
 const keyModule = "mod"
 
+func init() {
+	SetFormatter(&TextFormatter{
+		QuoteEmptyFields: true,
+		DisableSorting:   true})
+}
 func SetOutput(out io.Writer) {
 	logrus.SetOutput(out)
 }
