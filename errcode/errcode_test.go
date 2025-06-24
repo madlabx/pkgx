@@ -8,6 +8,11 @@ import (
 
 	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/httpx"
+<<<<<<< HEAD
+=======
+	"github.com/madlabx/pkgx/memkv"
+	"github.com/stretchr/testify/assert"
+>>>>>>> 491ef3b (do clean)
 	"github.com/stretchr/testify/require"
 )
 
@@ -208,3 +213,10 @@ func TestWithWrap(t *testing.T) {
 
 	require.Equal(t, "{\"Code\":\"ObjectExist\",\"Errno\":400,\"Message\":\"Code:ObjectExist, Errno:400\"}", fmt.Sprintf("%v", ErrObjectExist()))
 }
+<<<<<<< HEAD
+=======
+
+func TestError(t *testing.T) {
+	assert.True(t, IsNotFound(memkv.ErrNotFound))
+}
+>>>>>>> 491ef3b (do clean)

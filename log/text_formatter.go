@@ -37,6 +37,13 @@ func init() {
 	baseTimestamp = time.Now()
 }
 
+<<<<<<< HEAD
+=======
+const constUnderlyingFramesForLogCall = 8
+const constUnderlyingFramesForEntryCall = 6
+const constKeyUnderlyingFrames = "KeyUnderlyingFrames"
+
+>>>>>>> 491ef3b (do clean)
 // TextFormatter formats logs into text
 type TextFormatter struct {
 	// Set to true to bypass checking for a TTY before outputting colors.
@@ -71,6 +78,12 @@ type TextFormatter struct {
 	// false: "2020-02-22T21:42:57+08:00" info "Start all services..."
 	EnableFieldKey bool
 
+<<<<<<< HEAD
+=======
+	// skip frame in callstack when get FileLine
+	SkipFrames int
+
+>>>>>>> 491ef3b (do clean)
 	// show file:line
 	DisableFileLine bool
 
@@ -177,10 +190,30 @@ func LevelToString(level logrus.Level) string {
 	}
 }
 
+<<<<<<< HEAD
 // Format renders a single log entry
 func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	var b *bytes.Buffer
 	keys := make([]string, 0, len(entry.Data))
+=======
+func getUnderlyingFrames(entry *logrus.Entry) int {
+	n, ok := entry.Data[constKeyUnderlyingFrames]
+	if ok {
+		// remove it
+		delete(entry.Data, constKeyUnderlyingFrames)
+		return n.(int)
+	} else {
+		return constUnderlyingFramesForLogCall
+	}
+}
+
+// Format renders a single log entry
+func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	var b *bytes.Buffer
+	underlyingFrames := getUnderlyingFrames(entry) + f.SkipFrames
+	keys := make([]string, 0, len(entry.Data))
+
+>>>>>>> 491ef3b (do clean)
 	for k := range entry.Data {
 		keys = append(keys, k)
 	}
@@ -208,7 +241,11 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	f.appendMsg(b, "level", levelStr)
 	if !f.DisableFileLine {
+<<<<<<< HEAD
 		fl, _ := f.getRunTimeInfoString(9)
+=======
+		fl, _ := f.getRunTimeInfoString(underlyingFrames)
+>>>>>>> 491ef3b (do clean)
 		f.appendMsg(b, "filen", fl)
 	}
 	if entry.Message != "" {

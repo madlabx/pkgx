@@ -11,6 +11,10 @@ import (
 	"github.com/labstack/echo/middleware"
 	labstacklog "github.com/labstack/gommon/log"
 	"github.com/madlabx/pkgx/log"
+<<<<<<< HEAD
+=======
+	"github.com/madlabx/pkgx/memkv"
+>>>>>>> 491ef3b (do clean)
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,10 +60,15 @@ type LogConfig struct {
 	//ContentFormatAfter  string `vx_default:"${time_custom} AFT ${status} ${method} ${latency_human} ${uri} ${host} ${remote_ip} ${bytes_in} ${bytes_out} ${error}"`
 	ContentFormatAfter string
 }
+<<<<<<< HEAD
+=======
+type HandlerOnIdempotentErrFunc func(c echo.Context, requestId string) error
+>>>>>>> 491ef3b (do clean)
 
 type ApiGateway struct {
 	ctx context.Context
 	*echo.Echo
+<<<<<<< HEAD
 	addr              string
 	port              string
 	name              string
@@ -68,10 +77,27 @@ type ApiGateway struct {
 	EntryFormat       logrus.Formatter
 	loggerSkipper     middleware.Skipper
 	bodyLoggerSkipper middleware.Skipper
+=======
+	addr                     string
+	port                     string
+	name                     string
+	Logger                   *log.Logger
+	LogConf                  *LogConfig
+	EntryFormat              logrus.Formatter
+	loggerSkipper            middleware.Skipper
+	bodyLoggerSkipper        middleware.Skipper
+	isIdempotent             bool
+	idempotentKeyExpiry      int64
+	idempotentNameHeader     string
+	idempotentNameQueryParam string
+	idempotentKeyCache       *memkv.Cache
+	onIdempotenceCheckError  HandlerOnIdempotentErrFunc
+>>>>>>> 491ef3b (do clean)
 }
 
 func NewApiGateway(pCtx context.Context, addr, port, name string, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
 	agw := &ApiGateway{
+<<<<<<< HEAD
 		addr:        addr,
 		port:        port,
 		name:        name,
@@ -79,6 +105,16 @@ func NewApiGateway(pCtx context.Context, addr, port, name string, lc *LogConfig,
 		Echo:        echo.New(),
 		LogConf:     lc,
 		EntryFormat: logFormat,
+=======
+		addr:         addr,
+		port:         port,
+		name:         name,
+		ctx:          context.WithoutCancel(pCtx),
+		Echo:         echo.New(),
+		LogConf:      lc,
+		EntryFormat:  logFormat,
+		isIdempotent: false,
+>>>>>>> 491ef3b (do clean)
 	}
 
 	//if lc == nil, log to log.StandardLogger
@@ -89,6 +125,18 @@ func NewApiGateway(pCtx context.Context, addr, port, name string, lc *LogConfig,
 	return agw, nil
 }
 
+<<<<<<< HEAD
+=======
+// not support dynamic change
+func (agw *ApiGateway) EnableIdempotentCheck(idempotentNameInHeader, idempotentNameInQueryParam string, expiryInSec int64, fn HandlerOnIdempotentErrFunc) {
+	agw.isIdempotent = true
+	agw.idempotentNameHeader = idempotentNameInHeader
+	agw.idempotentNameQueryParam = idempotentNameInQueryParam
+	agw.idempotentKeyExpiry = expiryInSec
+	agw.onIdempotenceCheckError = fn
+}
+
+>>>>>>> 491ef3b (do clean)
 func (agw *ApiGateway) SetLoggerSkipper(s middleware.Skipper) {
 	agw.loggerSkipper = s
 }
@@ -100,7 +148,20 @@ func (agw *ApiGateway) SetBodyLoggerSkipper(s middleware.Skipper) {
 func (agw *ApiGateway) Name() string {
 	return agw.name
 }
+<<<<<<< HEAD
 func (agw *ApiGateway) Run() error {
+=======
+
+func (agw *ApiGateway) enableIdempotence() {
+	agw.idempotentKeyCache = memkv.NewCache(agw.ctx, nil, memkv.CacheConf{})
+}
+
+func (agw *ApiGateway) Run() error {
+	if agw.isIdempotent {
+		agw.enableIdempotence()
+	}
+
+>>>>>>> 491ef3b (do clean)
 	agw.configEcho()
 	return agw.startEcho(fmt.Sprintf("%s:%s", agw.addr, agw.port))
 }
@@ -132,6 +193,39 @@ func (agw *ApiGateway) initAccessLog() error {
 	return nil
 }
 
+<<<<<<< HEAD
+=======
+func (agw *ApiGateway) idempotenceCheck(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		rid := c.Request().Header.Get(agw.idempotentNameHeader)
+		if rid == "" {
+			rid = c.QueryParam(agw.idempotentNameQueryParam)
+		}
+
+		if rid == "" {
+			if err := agw.onIdempotenceCheckError(c, rid); err != nil {
+				return err
+			}
+
+			return next(c)
+		}
+
+		isExist, err := agw.idempotentKeyCache.CreateOrUpdate(&idempotentRecord{Key: rid}, agw.idempotentKeyExpiry)
+		if err != nil {
+			return err
+		}
+
+		if isExist {
+			if err = agw.onIdempotenceCheckError(c, rid); err != nil {
+				return err
+			}
+		}
+
+		return next(c)
+	}
+}
+
+>>>>>>> 491ef3b (do clean)
 func (agw *ApiGateway) configEcho() {
 	var (
 		e = agw.Echo
@@ -160,6 +254,14 @@ func (agw *ApiGateway) configEcho() {
 	if agw.bodyLoggerSkipper != nil {
 		bodyFilter = agw.bodyLoggerSkipper
 	}
+<<<<<<< HEAD
+=======
+
+	if agw.isIdempotent {
+		e.Use(agw.idempotenceCheck)
+	}
+
+>>>>>>> 491ef3b (do clean)
 	e.Use(LoggerWithConfig(LoggerConfig{
 		OutBodyFilter:    bodyFilter,
 		FormatAfter:      agw.LogConf.ContentFormatAfter,

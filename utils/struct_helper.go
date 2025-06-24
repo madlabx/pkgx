@@ -33,6 +33,48 @@ func GetFieldValue(sv any, fieldName string) (any, error) {
 	return nil, fmt.Errorf("field '%s' not found", fieldName)
 }
 
+<<<<<<< HEAD
+=======
+func notEmpty(in []string) bool {
+	for _, v := range in {
+		if len(v) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func BuildSignStringForQueryParams(params map[string][]string) string {
+	var buf bytes.Buffer
+
+	signParamKeys := make([]string, 0, len(params))
+	for k, v := range params {
+		if k != "Sign" && notEmpty(v) {
+			signParamKeys = append(signParamKeys, k)
+		}
+	}
+	sort.Strings(signParamKeys)
+
+	for i, key := range signParamKeys {
+		if i != 0 {
+			buf.WriteString("&")
+		}
+		for j, value := range params[key] {
+			if len(value) > 0 {
+				if j != 0 {
+					buf.WriteString("&")
+				}
+				buf.WriteString(key)
+				buf.WriteString("=")
+				buf.WriteString(value)
+			}
+		}
+	}
+
+	return buf.String()
+}
+
+>>>>>>> 491ef3b (do clean)
 // GetSignString  ignore Sign in r
 func GetSignString(r any) string {
 	var buf bytes.Buffer
@@ -354,6 +396,13 @@ func StructToMap(obj interface{}) map[string]string {
 }
 
 func StructToMapStrStr(input interface{}) map[string]string {
+<<<<<<< HEAD
+=======
+	if reflect.TypeOf(input).Kind() == reflect.Map {
+		return input.(map[string]string)
+	}
+
+>>>>>>> 491ef3b (do clean)
 	m := make(map[string]string)
 	structToMapStrStrInternal(input, m)
 	return m

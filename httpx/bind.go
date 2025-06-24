@@ -80,8 +80,87 @@ func BindAndValidate(c echo.Context, i any) error {
 	return hp.bindAndValidate(i, hp.bodyMap, []string{}...)
 }
 
+<<<<<<< HEAD
 func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...string) error {
 	v := reflect.ValueOf(input)
+=======
+func (hp *hxParser) bindStruct(fieldValue reflect.Value, value any, newPaths ...string) error {
+
+	if done, err := hp.tryUnmarshalX(fieldValue, value); err != nil {
+		return errors.Wrapf(err, "path:%v", newPaths)
+	} else if done {
+		return nil
+	}
+
+	if fieldValue.Kind() == reflect.Pointer {
+		fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
+	} else {
+
+		fieldValue = fieldValue.Addr()
+	}
+	structTarget, _ := value.(map[string]any)
+	return hp.bindAndValidate(fieldValue.Interface(), structTarget, newPaths...)
+}
+
+func (hp *hxParser) parseValue(fieldType reflect.StructField, target map[string]any, hxTags *hxTag, newPaths ...string) (value any, err error) {
+
+	var (
+		bv     any
+		qv, hv string
+	)
+
+	if hxTags.inQuery() {
+		qv = hp.queryParams.Get(hxTags.realName(fieldType.Name))
+	}
+
+	if hxTags.inBody() {
+		bv = target[fieldType.Name]
+	}
+
+	if hxTags.inHeader() {
+		hv = hp.headers.Get(hxTags.realName(fieldType.Name))
+	}
+
+	// apply body in first
+	if bv != nil {
+		vv := reflect.ValueOf(bv)
+		if hxTags.must {
+			if vv.Kind() == reflect.Slice || vv.Kind() == reflect.Map || vv.Kind() == reflect.String {
+				// 返回数据的长度
+				if vv.Len() == 0 {
+					err = errors.Errorf("missing parameter %s", strings.Join(newPaths, "."))
+					return
+				}
+			}
+		}
+		value = bv
+	} else if qv != "" {
+		value = qv
+	} else if hv != "" {
+		value = hv
+	} else {
+		if hxTags.must {
+			if hxTags.place != "" {
+				err = errors.Errorf("missing %s parameter %s", hxTags.place, strings.Join(newPaths, "."))
+			} else {
+				err = errors.Errorf("missing parameter %s", strings.Join(newPaths, "."))
+			}
+			return
+
+		}
+		if hxTags.defaultValue != "" {
+			value = hxTags.defaultValue
+		}
+	}
+
+	return
+}
+
+func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...string) error {
+
+	v := reflect.ValueOf(input)
+
+>>>>>>> 491ef3b (do clean)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
 		return errors.Errorf("invalid type:%v, path:%v", v.Kind(), paths)
 	}
@@ -101,6 +180,7 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 	}
 
 	for i := 0; i < v.NumField(); i++ {
+<<<<<<< HEAD
 		field := t.Field(i)
 		fieldValue := v.Field(i)
 		if fieldValue.Kind() == reflect.Invalid {
@@ -108,6 +188,15 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 		}
 
 		if field.Anonymous {
+=======
+		fieldType := t.Field(i)
+		fieldValue := v.Field(i)
+		if fieldValue.Kind() == reflect.Invalid {
+			fieldValue.Addr().Set(reflect.New(fieldType.Type))
+		}
+
+		if fieldType.Anonymous {
+>>>>>>> 491ef3b (do clean)
 			err := hp.bindAndValidate(fieldValue.Addr().Interface(), target, paths...)
 			if err != nil {
 				return err
@@ -115,6 +204,7 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 			continue
 		}
 
+<<<<<<< HEAD
 		newPaths := append(paths, field.Name)
 
 		var newTarget any
@@ -177,10 +267,16 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 		}
 
 		hxTags, err := parseHxTag(field.Tag, newPaths...)
+=======
+		newPaths := append(paths, fieldType.Name)
+
+		hxTags, err := parseHxTag(fieldType.Tag, newPaths...)
+>>>>>>> 491ef3b (do clean)
 		if err != nil {
 			return err
 		}
 
+<<<<<<< HEAD
 		var (
 			value, bv any
 			qv, hv    string
@@ -230,6 +326,79 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 
 		if value != nil && fieldValue.CanSet() {
 			if err = hp.setFieldAndValidate(fieldValue.Addr(), field.Type, value, hxTags, newPaths...); err != nil {
+=======
+		value, err := hp.parseValue(fieldType, target, hxTags, newPaths...)
+		if err != nil {
+			return err
+		}
+
+		// parse struct member
+		switch fieldType.Type.Kind() {
+		case reflect.Struct:
+			if err = hp.bindStruct(fieldValue, value, newPaths...); err != nil {
+				return err
+			}
+			continue
+		case reflect.Ptr:
+			if fieldType.Type.Elem().Kind() == reflect.Struct && fieldValue.CanSet() && fieldType.Type.Elem() != reflect.TypeOf(&time.Time{}) {
+				if err = hp.bindStruct(fieldValue, value, newPaths...); err != nil {
+					return err
+				}
+
+				continue
+			}
+		case reflect.Slice:
+			if fieldType.Type.Elem() != reflect.TypeOf(&time.Time{}) {
+				if value == nil {
+					continue
+				}
+				sliceTarget, ok := value.([]any)
+				if !ok {
+					return errors.Errorf("Should be slice %T, path:%v", value, newPaths)
+				}
+
+				numElems := len(sliceTarget)
+				if numElems > 0 {
+					slice := reflect.MakeSlice(fieldType.Type, numElems, numElems)
+					for j := 0; j < numElems; j++ {
+						item := slice.Index(j)
+						switch item.Type().Kind() {
+						case reflect.Struct:
+
+							if err = hp.bindStruct(item, sliceTarget[j], newPaths...); err != nil {
+								return err
+							}
+						case reflect.Ptr:
+							if item.CanSet() {
+								if err = hp.bindStruct(item, sliceTarget[j], newPaths...); err != nil {
+									return err
+								}
+							}
+						default:
+							if err = hp.setFieldAndValidate(item, item.Type(), sliceTarget[j], hxTags, newPaths...); err != nil {
+								return errors.Errorf("%v, path:%v", err, strings.Join(newPaths, "."))
+							}
+						}
+					}
+					fieldValue.Set(slice)
+					continue
+				}
+
+				continue
+
+			}
+		case reflect.Interface:
+			structTarget, _ := value.(map[string]any)
+			fieldValue.Set(reflect.ValueOf(structTarget))
+			continue
+		default:
+			//do nothing
+		}
+
+		// parse not struct
+		if value != nil && fieldValue.CanSet() {
+			if err = hp.setFieldAndValidate(fieldValue, fieldType.Type, value, hxTags, newPaths...); err != nil {
+>>>>>>> 491ef3b (do clean)
 				return errors.Errorf("%v, path:%v", err, strings.Join(newPaths, "."))
 			}
 		}
@@ -238,6 +407,40 @@ func (hp *hxParser) bindAndValidate(input any, target map[string]any, paths ...s
 	return nil
 }
 
+<<<<<<< HEAD
+=======
+func (hp *hxParser) tryUnmarshalX(fieldValue reflect.Value, value any) (bool, error) {
+
+	switch fieldValue.Kind() {
+
+	case reflect.Ptr:
+		if _, ok := fieldValue.Interface().(Unmarshaler); !ok {
+			return false, nil
+		}
+
+		if value == nil {
+			return true, nil
+		}
+
+		fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
+
+		u, _ := fieldValue.Interface().(Unmarshaler)
+		return true, u.UnmarshalJSONX([]byte(fmt.Sprint(value)))
+	case reflect.Struct:
+		if u, ok := fieldValue.Addr().Interface().(Unmarshaler); ok {
+			if value == nil {
+				return true, nil
+			}
+			return true, u.UnmarshalJSONX([]byte(fmt.Sprint(value)))
+		}
+
+		return false, nil
+	default:
+		return false, errors.Errorf("Wrong type[%v] for tryUnmarshalX", fieldValue.Kind())
+	}
+}
+
+>>>>>>> 491ef3b (do clean)
 func (hp *hxParser) existInQueryParam(key string) bool {
 	_, exists := hp.queryParams[key]
 	if exists {
@@ -249,7 +452,11 @@ func (hp *hxParser) existInQueryParam(key string) bool {
 	// fix this we must check all of the map values in a
 	// case-insensitive search.
 	key = strings.ToLower(key)
+<<<<<<< HEAD
 	for k, _ := range hp.queryParams {
+=======
+	for k := range hp.queryParams {
+>>>>>>> 491ef3b (do clean)
 		if strings.ToLower(k) == key {
 			return true
 		}
@@ -375,6 +582,7 @@ func setStringField(value string, field reflect.Value, ht *hxTag) error {
 }
 
 // setFieldAndValidate sets a struct field with a value, ensuring it is of the proper type.
+<<<<<<< HEAD
 func (hp *hxParser) setFieldAndValidate(structFieldPtr reflect.Value, objT reflect.Type, oriV any, ht *hxTag, paths ...string) error {
 	if structFieldPtr.Elem().Kind() == reflect.Invalid {
 		structFieldPtr.Set(reflect.New(objT))
@@ -408,6 +616,19 @@ func (hp *hxParser) setFieldAndValidate(structFieldPtr reflect.Value, objT refle
 	switch objT.Kind() {
 	case reflect.Pointer:
 		return hp.setFieldAndValidate(structField, objT.Elem(), val, ht, paths...)
+=======
+func (hp *hxParser) setFieldAndValidate(structField reflect.Value, objT reflect.Type, oriV any, ht *hxTag, paths ...string) error {
+	val := fmt.Sprintf("%v", oriV)
+
+	//TODO value time.Time
+	switch objT.Kind() {
+	case reflect.Pointer:
+		if objT.Elem().Kind() == reflect.Pointer {
+			return errors.Errorf("invalid type for field, type:%v, value:%#v, value type:%T", objT.Kind(), oriV, oriV)
+		}
+		structField.Set(reflect.New(objT.Elem()))
+		return hp.setFieldAndValidate(structField.Elem(), objT.Elem(), val, ht, paths...)
+>>>>>>> 491ef3b (do clean)
 	case reflect.Int:
 		return setIntField(val, 0, structField, ht)
 	case reflect.Int8:
@@ -436,9 +657,14 @@ func (hp *hxParser) setFieldAndValidate(structFieldPtr reflect.Value, objT refle
 		return setFloatField(val, 64, structField, ht)
 	case reflect.String:
 		return setStringField(val, structField, ht)
+<<<<<<< HEAD
 	//case reflect.Struct:
 	//	return hp.bindAndValidate(structField.Addr().Interface(), paths...)
 	default:
 		return errors.Errorf("invalid type:%v, value:%#v, value type:%T", objT.Kind(), oriV, oriV)
+=======
+	default:
+		return errors.Errorf("invalid type for field, type:%v, value:%#v, value type:%T", objT.Kind(), oriV, oriV)
+>>>>>>> 491ef3b (do clean)
 	}
 }

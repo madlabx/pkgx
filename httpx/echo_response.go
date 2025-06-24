@@ -62,20 +62,44 @@ func CheckIfModifiedSince(r *http.Request, modtime time.Time) bool {
 	return false
 }
 
+<<<<<<< HEAD
+=======
+func newRequestId(c echo.Context) string {
+	rid := c.Request().Header.Get(echo.HeaderXRequestID)
+	if rid == "" {
+		rid = c.QueryParam(echo.HeaderXRequestID)
+	}
+
+	if rid == "" {
+		rid = errCodeDic.NewRequestId()
+	}
+
+	return rid
+}
+
+>>>>>>> 491ef3b (do clean)
 func SendResp(c echo.Context, resp error) (err error) {
 	if c.Response().Committed {
 		return resp
 	}
 
 	if resp == nil {
+<<<<<<< HEAD
 		rid := errCodeDic.NewRequestId()
+=======
+		rid := newRequestId(c)
+>>>>>>> 491ef3b (do clean)
 		c.Response().Header().Set(echo.HeaderXRequestID, rid)
 		return c.NoContent(http.StatusOK)
 	}
 
 	jr := Wrap(resp)
 	if jr.RequestId == "" {
+<<<<<<< HEAD
 		jr.RequestId = errCodeDic.NewRequestId()
+=======
+		jr.RequestId = newRequestId(c)
+>>>>>>> 491ef3b (do clean)
 	}
 	c.Response().Header().Set(echo.HeaderXRequestID, jr.RequestId)
 

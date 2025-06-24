@@ -5,6 +5,11 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"math/rand"
+<<<<<<< HEAD
+=======
+	"reflect"
+	"strconv"
+>>>>>>> 491ef3b (do clean)
 	"strings"
 	"sync"
 	"time"
@@ -70,3 +75,31 @@ func NewRequestId() string {
 	uuid := uuid.NewV4()
 	return strings.ToUpper(uuid.String())
 }
+<<<<<<< HEAD
+=======
+
+// AsStr 将其他数据类型转化为 string
+func AsStr(src interface{}) string {
+	switch v := src.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	}
+	rv := reflect.ValueOf(src)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(rv.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(rv.Uint(), 10)
+	case reflect.Float64:
+		return strconv.FormatFloat(rv.Float(), 'g', -1, 64)
+	case reflect.Float32:
+		return strconv.FormatFloat(rv.Float(), 'g', -1, 32)
+	case reflect.Bool:
+		return strconv.FormatBool(rv.Bool())
+	default:
+		return fmt.Sprintf("%s", src)
+	}
+}
+>>>>>>> 491ef3b (do clean)
