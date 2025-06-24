@@ -1,0 +1,12 @@
+{
+  "sys": {
+    "logLevel": "config_file_dev",
+    "size": 123
+  },
+  "user": {
+  },
+  "nc" : {
+    "Bw": 123
+  }
+
+}
