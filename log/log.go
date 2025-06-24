@@ -40,17 +40,6 @@ func SetFormatter(formatter logrus.Formatter) {
 }
 
 func WithError(err error) *logrus.Entry {
-<<<<<<< HEAD
-	return logrus.WithField(logrus.ErrorKey, err)
-}
-
-func WithModule(value interface{}) *logrus.Entry {
-	return logrus.WithField(keyModule, value)
-}
-
-func WithField(key string, value interface{}) *logrus.Entry {
-	return logrus.WithField(key, value)
-=======
 	return WithField(logrus.ErrorKey, err)
 }
 
@@ -60,7 +49,6 @@ func WithModule(value interface{}) *logrus.Entry {
 
 func WithField(key string, value interface{}) *logrus.Entry {
 	return logrus.WithFields(logrus.Fields{key: value, constKeyUnderlyingFrames: constUnderlyingFramesForEntryCall})
->>>>>>> 491ef3b (do clean)
 }
 
 func WithFields(fields logrus.Fields) *logrus.Entry {
@@ -100,29 +88,6 @@ func Fatal(args ...interface{}) {
 }
 
 func Debugf(format string, args ...interface{}) {
-<<<<<<< HEAD
-	logrus.Debugf(format, args...)
-}
-
-func Printf(format string, args ...interface{}) {
-	logrus.Printf(format, args...)
-}
-
-func Infof(format string, args ...interface{}) {
-	logrus.Infof(format, args...)
-}
-
-func Warnf(format string, args ...interface{}) {
-	logrus.Warnf(format, args...)
-}
-
-func Warningf(format string, args ...interface{}) {
-	logrus.Warningf(format, args...)
-}
-
-func Errorf(format string, args ...interface{}) {
-	logrus.Errorf(format, args...)
-=======
 	logrus.Debug(fmt.Sprintf(format, args...))
 }
 
@@ -144,7 +109,6 @@ func Warningf(format string, args ...interface{}) {
 
 func Errorf(format string, args ...interface{}) {
 	logrus.Error(fmt.Sprintf(format, args...))
->>>>>>> 491ef3b (do clean)
 }
 
 func StdoutPrintf(format string, args ...interface{}) {
@@ -152,19 +116,11 @@ func StdoutPrintf(format string, args ...interface{}) {
 }
 
 func Panicf(format string, args ...interface{}) {
-<<<<<<< HEAD
-	logrus.Panicf(format, args...)
-}
-
-func Fatalf(format string, args ...interface{}) {
-	logrus.Fatalf(format, args...)
-=======
 	logrus.Panic(fmt.Sprintf(format, args...))
 }
 
 func Fatalf(format string, args ...interface{}) {
 	logrus.Fatal(fmt.Sprintf(format, args...))
->>>>>>> 491ef3b (do clean)
 }
 
 func Debugln(args ...interface{}) {
@@ -200,11 +156,7 @@ func Fatalln(args ...interface{}) {
 }
 
 func Eventf(format string, args ...interface{}) {
-<<<<<<< HEAD
-	logrus.Infof("--EVENT-- "+format, args...)
-=======
 	logrus.Info(fmt.Sprintf("--EVENT-- "+format, args...))
->>>>>>> 491ef3b (do clean)
 }
 
 func FatalIf(args ...interface{}) {
@@ -213,10 +165,6 @@ func FatalIf(args ...interface{}) {
 
 func IgnoreErrf(err error, ctxFormat string, ctxArgs ...interface{}) {
 	if err != nil {
-<<<<<<< HEAD
-		logrus.Errorf("Ignore err, context:%v, err:%+v", fmt.Sprintf(ctxFormat, ctxArgs...), err)
-=======
 		logrus.Error(fmt.Sprintf("Ignore err, context:%v, err:%+v", fmt.Sprintf(ctxFormat, ctxArgs...), err))
->>>>>>> 491ef3b (do clean)
 	}
 }

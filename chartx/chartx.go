@@ -7,21 +7,11 @@ import (
 	"os"
 	"time"
 
-<<<<<<< HEAD
-	"github.com/madlabx/pkgx/errors"
-
-	"github.com/fogleman/gg"
-	"github.com/go-echarts/go-echarts/v2/charts"
-	"github.com/go-echarts/go-echarts/v2/opts"
-	"github.com/madlabx/pkgx/log"
-	"github.com/wcharczuk/go-chart/v2"
-=======
 	"github.com/fogleman/gg"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/log"
->>>>>>> 491ef3b (do clean)
 	"github.com/wcharczuk/go-chart/v2/drawing"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"

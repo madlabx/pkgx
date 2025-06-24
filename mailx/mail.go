@@ -1,18 +1,11 @@
 package mailx
 
 import (
-<<<<<<< HEAD
-	"github.com/jordan-wright/email"
-	"github.com/madlabx/pkgx/viperx"
-	"net/smtp"
-	"strings"
-=======
 	"net/smtp"
 	"strings"
 
 	"github.com/jordan-wright/email"
 	"github.com/madlabx/pkgx/viperx"
->>>>>>> 491ef3b (do clean)
 )
 
 type MailType int

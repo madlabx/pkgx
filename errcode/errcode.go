@@ -189,11 +189,8 @@ var (
 	ErrNotImplemented      = New(http.StatusNotImplemented)
 	ErrBadRequest          = New(http.StatusBadRequest)
 
-<<<<<<< HEAD
-=======
 	ErrIdempotent = New(http.StatusAccepted, "AlreadyAccepted")
 
->>>>>>> 491ef3b (do clean)
 	ErrLengthRequired               = New(http.StatusLengthRequired)
 	ErrRequestURITooLong            = New(http.StatusRequestURITooLong)
 	ErrUnsupportedMediaType         = New(http.StatusUnsupportedMediaType)
@@ -241,16 +238,6 @@ var (
 )
 
 var (
-<<<<<<< HEAD
-	ErrWrongSign       = New(http.StatusBadRequest, "WrongSign")
-	ErrExpiredRequest  = New(http.StatusBadRequest, "ExpiredRequest")
-	ErrObjectExist     = New(http.StatusBadRequest, "ObjectExist")
-	ErrObjectNotExist  = New(http.StatusBadRequest, "ObjectNotExist")
-	ErrUserExist       = New(http.StatusBadRequest, "UserExist")
-	ErrUserNotExist    = New(http.StatusBadRequest, "UserNotExist")
-	ErrSessionNotExist = New(http.StatusBadRequest, "SessionNotExist")
-	ErrSessionExist    = New(http.StatusBadRequest, "SessionExist")
-=======
 	ErrIdempotentError   = New(http.StatusAccepted, "AlreadyAccepted")
 	ErrWrongSign         = New(http.StatusBadRequest, "WrongSign")
 	ErrExpiredRequest    = New(http.StatusBadRequest, "ExpiredRequest")
@@ -262,7 +249,6 @@ var (
 	ErrSessionExist      = New(http.StatusBadRequest, "SessionExist")
 	ErrUnsupportedDevice = New(http.StatusBadRequest, "UnsupportedDevice")
 	ErrInvalidDeviceId   = New(http.StatusBadRequest, "InvalidDeviceId")
->>>>>>> 491ef3b (do clean)
 
 	ErrRTokenDisabled  = New(http.StatusUnauthorized, "RTokenDisabled")
 	ErrInvalidJwt      = New(http.StatusUnauthorized, "InvalidJwt")
@@ -278,37 +264,10 @@ var (
 	ErrDeviceCommunicateErr = New(http.StatusInternalServerError, "DeviceCommunicateErr")
 	ErrNotReady             = New(http.StatusInternalServerError, "NotReady")
 	ErrInvalidDataType      = New(http.StatusInternalServerError, "InvalidDataType")
-<<<<<<< HEAD
-=======
 
 	ErrDeviceOffline  = New(http.StatusBadRequest, "DeviceOffline")
 	ErrInUpgrading    = New(http.StatusBadRequest, "InUpgrading")
 	ErrUpgradeTimeout = New(http.StatusInternalServerError, "UpgradeTimeout")
-
-	ErrOnethingTooBusy = New(http.StatusTooManyRequests, "OnethingTooBusy")
-	ErrObjectBusy      = New(http.StatusTooManyRequests, "ObjectBusy")
-
-	ErrInvalidVrfCode = New(http.StatusBadRequest, "InvalidSmsCode")
-	ErrExpiredVrfCode = New(http.StatusBadRequest, "ExpiredSmsCode")
-
-	ErrWrongWxNode = New(http.StatusBadRequest, "WrongWxNode")
-
-	ErrOmDevicePppoe                  = New(http.StatusInternalServerError, "OmDevicePppoe")
-	ErrOmDeviceOffline                = New(http.StatusInternalServerError, "OmDeviceOffline")
-	ErrOmDeviceEmptyResponse          = New(http.StatusInternalServerError, "OmDeviceEmptyResponse")
-	ErrOmResponseError                = New(http.StatusInternalServerError, "OmResponseError")
-	ErrOnethingAlreadyBound           = New(http.StatusInternalServerError, "OnethingAlreadyBound")
-	ErrOnethingBadRequest             = New(http.StatusInternalServerError, "OnethingBadRequest")
-	ErrOnethingNoDevice               = New(http.StatusInternalServerError, "OnethingNoDevice")
-	ErrOnethingNotBound               = New(http.StatusInternalServerError, "OnethingNotBound")
-	ErrOnethingWrongActCodeOrUnAct    = New(http.StatusInternalServerError, "OnethingWrongActCodeOrUnAct")
-	ErrOnethingNoBindingDevice        = New(http.StatusInternalServerError, "OnethingNoBindingDevice")
-	ErrOnethingError                  = New(http.StatusInternalServerError, "OnethingError")
-	ErrOnethingParseError             = New(http.StatusInternalServerError, "OnethingParseError")
-	ErrOnethingBlockedForViolation    = New(http.StatusInternalServerError, "OnethingBlockedForViolation")
-	ErrOnethingAccountExist           = New(http.StatusInternalServerError, "OnethingAccountExist")
-	ErrOnethingBlockedForUnregistered = New(http.StatusInternalServerError, "OnethingBlockedForUnregistered")
->>>>>>> 491ef3b (do clean)
 )
 
 func ErrHttpStatus(status int) *ErrorCode {
@@ -321,11 +280,8 @@ func ErrStrResp(status int, b any, format string, a ...any) error {
 }
 
 func IsNotFound(err error) bool {
-<<<<<<< HEAD
-	return errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, ErrObjectNotExist()) || errors.Is(err, ErrUserNotExist())
-=======
+
 	return errors.Is(err, gorm.ErrRecordNotFound) ||
 		errors.Is(err, ErrObjectNotExist()) ||
 		errors.Is(err, ErrUserNotExist())
->>>>>>> 491ef3b (do clean)
 }

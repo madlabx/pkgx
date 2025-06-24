@@ -1,14 +1,9 @@
 package lumberjackx_test
 
 import (
-<<<<<<< HEAD
-	"github.com/madlabx/pkgx/lumberjackx"
-	"log"
-=======
 	"log"
 
 	"github.com/madlabx/pkgx/lumberjackx"
->>>>>>> 491ef3b (do clean)
 )
 
 // To use xlumberjack with the standard library's log package, just pass it into

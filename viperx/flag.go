@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/madlabx/pkgx/errors"
 	"github.com/madlabx/pkgx/utils"
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )

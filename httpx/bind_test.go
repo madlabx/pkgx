@@ -1,12 +1,6 @@
 package httpx
 
 import (
-<<<<<<< HEAD
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
-=======
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -14,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
->>>>>>> 491ef3b (do clean)
 	"strings"
 	"testing"
 
@@ -40,8 +33,6 @@ func (m *MockContext) Bind(i interface{}) error {
 	return args.Error(0)
 }
 
-<<<<<<< HEAD
-=======
 var _ Unmarshaler = (*Fid)(nil)
 
 type Fid struct {
@@ -101,7 +92,6 @@ func TestCheckInterface(t *testing.T) {
 	checkInterface(reflect.ValueOf(&Fid{}))
 }
 
->>>>>>> 491ef3b (do clean)
 type handleFunc func() echo.Context
 
 func TestBindAndValidate(t *testing.T) {
@@ -127,16 +117,11 @@ func TestBindAndValidate(t *testing.T) {
 			return c
 		}
 	}
-<<<<<<< HEAD
-	as := func(expect, output any) any {
-		return assert.Equal(t, expect, output)
-	}
-=======
+
 	as := func(expect, output any) bool {
 		return assert.Equal(t, expect, output)
 	}
 
->>>>>>> 491ef3b (do clean)
 	testCases := []struct {
 		testName      string
 		buildContext  handleFunc
@@ -144,8 +129,6 @@ func TestBindAndValidate(t *testing.T) {
 		expectedError error
 	}{
 		{
-<<<<<<< HEAD
-=======
 			testName:     "SupportPtrArrayYJMarshalerBody",
 			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Fids":["36310271995822508"]}`)),
 			structFunc: func(parsed any) any {
@@ -278,7 +261,6 @@ func TestBindAndValidate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
->>>>>>> 491ef3b (do clean)
 			testName:     "ValidQueryParams",
 			buildContext: mockRequest(http.MethodGet, "/?bandwidth=2", nil),
 			structFunc: func(parsed any) any {
@@ -383,9 +365,6 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: nil,
 		},
-<<<<<<< HEAD
-
-=======
 		{
 			testName:     "BodyAnonymousMember2",
 			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec"}`)),
@@ -406,7 +385,6 @@ func TestBindAndValidate(t *testing.T) {
 
 			expectedError: nil,
 		},
->>>>>>> 491ef3b (do clean)
 		{
 			testName:     "BodyDeepAnonymousMember",
 			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec", "PageNum":2}`)),
@@ -445,8 +423,6 @@ func TestBindAndValidate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-<<<<<<< HEAD
-=======
 			testName:     "BodyNilSlice",
 			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec", "PageNum":2}`)),
 			structFunc: func(parsed any) any {
@@ -465,7 +441,6 @@ func TestBindAndValidate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
->>>>>>> 491ef3b (do clean)
 			testName:     "BodyEmptyArray",
 			buildContext: mockRequest(http.MethodGet, "/", strings.NewReader(`{"Name":"test", "PageNum":1, "SortOrder":"asec", "PageNum":2}`)),
 			structFunc: func(parsed any) any {
@@ -578,22 +553,14 @@ func TestBindAndValidate(t *testing.T) {
 					//Bandwidth []uint64 `hx_must:"false" hx_range:"0-10"`
 					Bandwidths []uint64 `hx_must:"false" hx_range:"0-10"`
 					Quality    struct {
-<<<<<<< HEAD
-						Level *float64 `hx_must:"false"`
-=======
 						Level  *float64 `hx_must:"false"`
 						EmpPtr *int
->>>>>>> 491ef3b (do clean)
 					}
 				}
 
 				if parsed == nil {
 					return &inputStruct{}
 				}
-<<<<<<< HEAD
-				//as(parsed.(*inputStruct).Bandwidths, []uint64{1, 2, 3, 4})
-				return as(1.0, *(parsed.(*inputStruct).Quality.Level))
-=======
 				return as([]uint64{1, 2, 3, 4}, parsed.(*inputStruct).Bandwidths) &&
 					as(1.0, *(parsed.(*inputStruct).Quality.Level)) &&
 					assert.Nil(t, parsed.(*inputStruct).Quality.EmpPtr)
@@ -620,8 +587,6 @@ func TestBindAndValidate(t *testing.T) {
 				}
 				return as(1.0, parsed.(*inputStruct).Quality.Level) &&
 					as(0, parsed.(*inputStruct).Quality.EmpPtr)
-
->>>>>>> 491ef3b (do clean)
 			},
 
 			expectedError: nil,
@@ -681,8 +646,6 @@ func TestBindAndValidate(t *testing.T) {
 			},
 
 			expectedError: nil,
-<<<<<<< HEAD
-=======
 		}, {
 			testName:     "TestPtrMember",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Level":1712652096}`)),
@@ -714,22 +677,14 @@ func TestBindAndValidate(t *testing.T) {
 			},
 
 			expectedError: nil,
->>>>>>> 491ef3b (do clean)
 		},
 		{
 			testName: "TestStructArray",
 			buildContext: mockRequest(http.MethodPatch, "/we?Level=2.1", strings.NewReader(`{"Dirs":[
-<<<<<<< HEAD
-    {"Name":"./jonathantest","CreateTime":1712652096},
-    {"Name": "123dir"}
-    ]
-    }`)),
-=======
 		{"Name":"./jonathantest","CreateTime":1712652096},
 		{"Name": "123dir"}
 		]
 		}`)),
->>>>>>> 491ef3b (do clean)
 			structFunc: func(parsed any) any {
 				type NewStruct struct {
 					Name       string
@@ -835,8 +790,6 @@ func TestBindAndValidate(t *testing.T) {
 		})
 	}
 }
-<<<<<<< HEAD
-=======
 
 type testStruct struct {
 	Name *string
@@ -850,4 +803,3 @@ func TestTTT(t *testing.T) {
 
 	assert.Nil(t, target.Age)
 }
->>>>>>> 491ef3b (do clean)
