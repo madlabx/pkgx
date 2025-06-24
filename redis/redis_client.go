@@ -21,14 +21,15 @@ type Client struct {
 }
 
 func NewTestClient(pCtx context.Context, dbc *redis.Client) *Client {
+	ctx, _ := context.WithCancel(pCtx)
 	return &Client{
-		ctx: context.WithoutCancel(pCtx),
+		ctx: ctx,
 		rc:  dbc,
 	}
 }
 
 func NewClient(pCtx context.Context, conf Config) (*Client, error) {
-	ctx := context.WithoutCancel(pCtx)
+	ctx, _ := context.WithCancel(pCtx)
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     conf.Addr,     // Redis服务器地址
 		Password: conf.Password, // 密码，没有则留空

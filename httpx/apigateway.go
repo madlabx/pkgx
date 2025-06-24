@@ -80,11 +80,12 @@ type ApiGateway struct {
 }
 
 func NewApiGateway(pCtx context.Context, addr, port, name string, lc *LogConfig, logFormat logrus.Formatter) (*ApiGateway, error) {
+	ctx, _ :=context.WithCancel(pCtx),
 	agw := &ApiGateway{
 		addr:         addr,
 		port:         port,
 		name:         name,
-		ctx:          context.WithoutCancel(pCtx),
+		ctx:          ctx,
 		Echo:         echo.New(),
 		LogConf:      lc,
 		EntryFormat:  logFormat,

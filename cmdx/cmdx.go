@@ -30,7 +30,9 @@ func ExecShellCmd(pCtx context.Context, cmdStr string, result *Output) error {
 		return ErrEmptyCmdStr
 	}
 	shellBinary, shellParam := getShellCmdParam()
-	cmd := exec.CommandContext(context.WithoutCancel(pCtx), shellBinary, shellParam, cmdStr)
+	ctx, cancel := context.WithCancel(pCtx)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, shellBinary, shellParam, cmdStr)
 
 	return doExecCmd(cmd, result)
 }
@@ -72,7 +74,8 @@ func ExecBinaryCmd(pCtx context.Context, cmdStr string, result *Output) error {
 		return ErrEmptyCmdStr
 	}
 
-	ctx := context.WithoutCancel(pCtx)
+	ctx, cancel := context.WithCancel(pCtx)
+	defer cancel()
 	parts := strings.Fields(cmdStr)
 	head := parts[0]
 	parts = parts[1:]

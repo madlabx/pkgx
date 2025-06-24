@@ -239,7 +239,8 @@ func NewDbClient(pCtx context.Context, conf SqlConfig, tables ...any) (*DbClient
 	db, err := connectOrCreateDb()
 	if err != nil {
 		log.Errorf("failed to connect db, err:%v", err)
-		ctx, _ := context.WithCancel(pCtx)
+		ctx, cancel := context.WithCancel(pCtx)
+		defer cancel()
 		timer := time.NewTimer(time.Second)
 		for {
 			select {

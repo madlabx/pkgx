@@ -32,8 +32,9 @@ type CacheConf struct {
 
 // NewCache 创建一个新的缓存实例
 func NewCache(pCtx context.Context, client KvDbClientIf, conf CacheConf, records ...any) *Cache {
+	ctx, _ :=context.WithCancel(pCtx),
 	cache := &Cache{
-		ctx:     context.WithoutCancel(pCtx),
+		ctx:     ctx,
 		items:   new(sync.Map),
 		db:      client,
 		conf:    conf,
