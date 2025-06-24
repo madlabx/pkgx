@@ -23,8 +23,11 @@ type Graceful struct {
 	sigCh  chan os.Signal
 }
 
-func New() *Graceful {
-	ctx, cancel := context.WithCancel(context.Background())
+func New(parent context.Context) *Graceful {
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
 
 	gc := &Graceful{
 		ctx:    ctx,
@@ -44,7 +47,11 @@ func (gc *Graceful) Context() context.Context {
 
 func (gc *Graceful) listenToSignal() {
 
-	defer gc.cancel()
+	defer func() {
+		log.Errorf("listenToSignal defer")
+		gc.cancel()
+	}()
+	log.Errorf("listenToSignal start")
 	for {
 		sig := <-gc.sigCh
 		switch sig {
@@ -53,7 +60,7 @@ func (gc *Graceful) listenToSignal() {
 			log.Errorf("receive signal %v, program will exit", sig.String())
 			return
 		case syscall.SIGSEGV:
-			log.Errorf("recive signal %v, callstack: %v", sig.String(), debug.Stack())
+			log.Errorf("receive signal %v, callstack: %v", sig.String(), debug.Stack())
 			return
 		default:
 		}
@@ -61,7 +68,9 @@ func (gc *Graceful) listenToSignal() {
 }
 
 func (gc *Graceful) WaitToQuit(gss ...GracefulService) {
+	log.Errorf("WaitToQuit")
 	<-gc.ctx.Done()
+	log.Errorf("WaitToQuit")
 
 	quitCtx, quitCtxCancel := context.WithTimeout(context.Background(), 5*time.Second)
 

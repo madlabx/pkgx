@@ -220,17 +220,39 @@ func NewDbClient(pCtx context.Context, conf SqlConfig, tables ...any) (*DbClient
 	}
 
 	// 使用GORM连接数据库
-	db, err := gorm.Open(dialector, newDbC.config)
-	for err != nil {
-		log.Errorf("failed to connect db, err:%v", err)
-		if isDatabaseNotExistError(err, conf.Dbname) {
-			err = createDb(conf)
-			if err != nil {
-				log.Errorf("failed to createDb, err:%v", err)
+
+	connectOrCreateDb := func() (*gorm.DB, error) {
+		db, err := gorm.Open(dialector, newDbC.config)
+		if err != nil {
+			if isDatabaseNotExistError(err, conf.Dbname) {
+				log.Infof("database not exist, try to create")
+				if err1 := createDb(conf); err1 != nil {
+					log.Errorf("failed to createDb, err:%v", err1)
+				} else {
+					db, err = gorm.Open(dialector, newDbC.config)
+				}
 			}
 		}
-		time.Sleep(time.Second)
-		db, err = gorm.Open(dialector, newDbC.config)
+		return db, err
+	}
+
+	db, err := connectOrCreateDb()
+	if err != nil {
+		log.Errorf("failed to connect db, err:%v", err)
+		ctx, _ := context.WithCancel(pCtx)
+		timer := time.NewTimer(time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Infof("context done, return")
+				return nil, errors.New("failed to connect db for context done")
+			case <-timer.C:
+				if db, err = connectOrCreateDb(); err != nil {
+					log.Errorf("failed to connect db, err:%v", err)
+				}
+				timer.Reset(time.Second)
+			}
+		}
 	}
 
 	if conf.Type == ConstDbTypeSqlLite {

@@ -82,8 +82,9 @@ func SetLoggerOutput(lo *Logger, pCtx context.Context, cfg FileConfig) *Logger {
 	case "":
 		lo.SetOutput(os.Stdout)
 	default:
+		ctx, _ := context.WithCancel(pCtx)
 		lo.SetOutput(&lumberjackx.Logger{
-			Ctx:        context.WithoutCancel(pCtx),
+			Ctx:        ctx,
 			Filename:   cfg.Filename,
 			MaxSize:    cfg.MaxSize,    // megabytes
 			MaxBackups: cfg.MaxBackups, //file number
